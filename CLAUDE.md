@@ -4,15 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-A single-file, German-language learning app for SQL/database vocabulary: `sql_begriffe_trainieren.html`. There is no build system, package manager, tests, linter, or git repo. Open the file directly in a browser to run it; edit it in place.
+A single-file, German-language learning app for SQL/database vocabulary: `sql-begriffe/index.html` (one "mini" among several; the root `index.html` is the bi_minis tile overview with a hand-maintained `projects` array). There is no build system, package manager, tests, linter, or git repo. Open the file directly in a browser to run it; edit it in place.
 
 ## Architecture
 
 Everything (CSS, markup, JS) lives in the one HTML file, with no external dependencies.
 
 - **Data** is two arrays at the top of the `<script>`:
-  - `terms` — `{term, category, explanation}`. Drives the training "Begriffs-Wand" and the term buttons in the test.
-  - `questions` — `{q, a:[...]}`. Each entry in `a` must match a `term` string exactly. Questions can have several correct answers, and the user must select all of them.
+  - `terms` — `{term, category, explanation, example}`. `example` is an SQL snippet (newlines written as `\n`) shown under the explanation. Drives the training "Begriffs-Wand" and the term buttons in the test.
+  - `questions` — `{q, a:[...], ex}`. `ex` is an SQL snippet shown in the feedback after checking. Each entry in `a` must match a `term` string exactly. Questions can have several correct answers, and the user must select all of them.
 - **Two modes** toggled by `setMode()`: `trainingView` (click a term to read its explanation) and `testView` (shuffled questions, select term buttons, then "Antwort prüfen"). The test starts lazily on first entry to test mode.
 - Term and question order is shuffled on each start (`shuffle`). The UI is built with DOM APIs and `textContent`, not string-built HTML.
 - Test state is module-level `let` variables (`testQuestions`, `questionIndex`, `selected`, `checked`, `correct`, `answered`), reset by `startTest()`.

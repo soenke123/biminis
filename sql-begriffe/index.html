@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SQL – Begriffe trainieren</title>
+<style>
+:root {
+  --bg: #f4f6fb; --panel: #ffffff; --panel2: #f0f3fa; --line: #dde3ef;
+  --text: #1c2540; --muted: #667089; --accent: #4f46e5; --accent-ink: #ffffff; --accent-soft: #eceafd;
+  --green: #138a5e; --green-soft: #e3f6ee; --red: #d6364a; --red-soft: #fdeaed; --code-bg: #f6f8fc; --code: #3a4fb0;
+  --shadow: 0 1px 2px rgba(28,37,64,.06), 0 6px 20px rgba(28,37,64,.06);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: radial-gradient(1200px 400px at 50% -100px, #e4e8ff 0%, transparent 70%), var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, Segoe UI, sans-serif; min-height: 100vh; }
+button { font: inherit; cursor: pointer; }
+button:focus-visible { outline: 3px solid #a5b4fc; outline-offset: 2px; }
+.wrap { width: min(1100px, calc(100% - 32px)); margin: 0 auto; }
+header { padding: 30px 0 18px; }
+.eyebrow { color: var(--accent); text-transform: uppercase; letter-spacing: .14em; font-size: .75rem; font-weight: 800; }
+h1 { margin: 4px 0 4px; font-size: clamp(1.7rem, 4vw, 2.4rem); line-height: 1.15; letter-spacing: -.02em; }
+.subtitle { color: var(--muted); margin: 0; }
+.toolbar { position: sticky; top: 0; z-index: 20; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 10px 12px; margin-bottom: 22px; background: rgba(255,255,255,.88); backdrop-filter: blur(8px); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
+.seg { display: inline-flex; background: var(--panel2); border-radius: 11px; padding: 3px; gap: 2px; }
+.mode-btn { background: transparent; border: 0; color: var(--muted); padding: 8px 16px; border-radius: 9px; font-weight: 700; transition: background .12s, color .12s; }
+.mode-btn:hover { color: var(--text); }
+.mode-btn[aria-pressed="true"] { background: var(--panel); color: var(--accent); box-shadow: 0 1px 3px rgba(28,37,64,.15); }
+.tool-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.primary-btn { background: var(--accent); color: var(--accent-ink); border: 1px solid var(--accent); border-radius: 10px; padding: 9px 16px; font-weight: 750; transition: filter .12s, transform .12s; }
+.primary-btn:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+.primary-btn:disabled { opacity: .45; cursor: not-allowed; }
+.secondary-btn { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 9px 16px; font-weight: 700; }
+.secondary-btn:hover { border-color: var(--accent); color: var(--accent); }
+main { padding-bottom: 48px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 22px; box-shadow: var(--shadow); min-width: 0; }
+.panel h2 { margin: 0 0 4px; font-size: 1.15rem; }
+.muted { color: var(--muted); }
+.term-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 18px; }
+.term { border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 12px; min-height: 52px; padding: 10px 12px; text-align: center; font: 700 .95rem/1.3 ui-monospace, "Cascadia Code", Consolas, "Courier New", monospace; white-space: nowrap; box-shadow: 0 1px 2px rgba(28,37,64,.05); transition: border-color .12s, background .12s, transform .12s, box-shadow .12s; }
+.term:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 14px rgba(79,70,229,.15); }
+.term.selected { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.term.correct { background: var(--green-soft); border-color: var(--green); color: var(--green); }
+.term.wrong { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+.term:disabled { cursor: default; }
+.popover { position: absolute; z-index: 30; width: min(380px, calc(100vw - 24px)); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; box-shadow: 0 12px 40px rgba(28,37,64,.22); animation: pop .14s ease-out; }
+.popover::after { content: ""; position: absolute; left: var(--arrow-x, 50%); width: 14px; height: 14px; background: var(--panel); border: 1px solid var(--line); transform: translateX(-50%) rotate(45deg); }
+.popover.above::after { bottom: -8px; border-top: 0; border-left: 0; }
+.popover.below::after { top: -8px; border-bottom: 0; border-right: 0; }
+@keyframes pop { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.popover h3 { margin: 0 0 6px; font-family: ui-monospace, "Cascadia Code", Consolas, "Courier New", monospace; color: var(--accent); font-size: 1.15rem; }
+.popover p { margin: 0; }
+.example { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 12px 0 0; font: .86rem/1.55 ui-monospace, Consolas, "Courier New", monospace; color: var(--code); white-space: pre-wrap; overflow-x: auto; }
+.example-label { display: block; margin-top: 12px; color: var(--muted); font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.example-label + .example { margin-top: 4px; }
+.pill { display: inline-block; color: var(--accent); background: var(--accent-soft); padding: 2px 9px; border-radius: 99px; font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 8px; }
+.question { font-size: clamp(1.1rem, 2vw, 1.35rem); line-height: 1.45; font-weight: 700; margin: 8px 0 8px; }
+.question-number { color: var(--accent); font-size: .85rem; font-weight: 800; letter-spacing: .06em; }
+.progress-track { height: 7px; background: var(--panel2); border-radius: 99px; overflow: hidden; margin: 12px 0 18px; }
+.progress-fill { height: 100%; width: 0; background: linear-gradient(90deg, #6366f1, #4f46e5); border-radius: 99px; transition: width .25s; }
+.hint { color: var(--muted); font-size: .9rem; margin: 0; }
+.action-row { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 18px; }
+.feedback { border-radius: 12px; padding: 12px 14px; margin: 16px 0 4px; border: 1px solid var(--line); }
+.feedback.good { color: var(--green); border-color: #9fdcc3; background: var(--green-soft); }
+.feedback.bad { color: var(--red); border-color: #f2b5bd; background: var(--red-soft); }
+.hidden { display: none !important; }
+.stats { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.stat { border: 1px solid var(--line); background: var(--panel); border-radius: 99px; padding: 5px 14px; color: var(--muted); font-size: .9rem; box-shadow: 0 1px 2px rgba(28,37,64,.05); }
+.stat strong { color: var(--text); }
+.completion { text-align: center; padding: 30px 10px; }
+.completion h2 { font-size: 1.7rem; }
+.completion .score { font-size: 3rem; font-weight: 900; color: var(--accent); margin: 8px 0; }
+footer { color: var(--muted); font-size: .82rem; text-align: center; padding: 20px; }
+@media (max-width: 560px) { .wrap { width: calc(100% - 22px); } .panel { padding: 15px; } .term-grid { gap: 8px; } .term { padding: 9px 8px; font-size: .92rem; } .tool-actions { width: 100%; } .tool-actions button { flex: 1; } .seg { width: 100%; } .mode-btn { flex: 1; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Informatik · Datenbanksysteme</div>
+    <h1>SQL-Begriffe auffrischen</h1>
+    <p class="subtitle">Erst nachlesen, dann testen: Begriffe erkennen und Zusammenhänge wiederholen.</p>
+  </header>
+  <nav class="toolbar" aria-label="Steuerung">
+    <div class="seg" role="group" aria-label="Modus auswählen">
+      <button class="mode-btn" id="trainingMode" aria-pressed="true">Training</button>
+      <button class="mode-btn" id="testMode" aria-pressed="false">Test</button>
+    </div>
+    <div class="tool-actions">
+      <button id="startTestBtn" class="primary-btn">▶ Test starten</button>
+      <button id="restartBtn" class="secondary-btn">↻ Neustart</button>
+    </div>
+  </nav>
+  <main>
+    <section id="trainingView" class="panel">
+      <h2>Begriffs-Wand</h2>
+      <p class="muted">Klicke auf einen Begriff, um seine Erklärung zu lesen.</p>
+      <div id="trainingTerms" class="term-grid"></div>
+    </section>
+
+    <section id="testView" class="hidden">
+      <div class="stats">
+        <div class="stat">Richtig: <strong id="correctCount">0</strong></div>
+        <div class="stat">Bearbeitet: <strong id="answeredCount">0</strong>/19</div>
+      </div>
+      <div class="panel">
+        <div class="question-number" id="questionNumber">FRAGE 1 VON 19</div>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <p class="question" id="questionText"></p>
+        <p class="hint" id="questionHint">Klicke den passenden Begriff oder die passenden Begriffe in der Wand an. Manche Fragen haben mehrere richtige Antworten.</p>
+        <div id="feedback" class="feedback hidden" aria-live="polite"></div>
+        <div id="testTerms" class="term-grid"></div>
+        <div class="action-row">
+          <button id="checkAnswer" class="primary-btn">Antwort prüfen</button>
+          <button id="nextQuestion" class="primary-btn hidden">Nächste Frage</button>
+        </div>
+        <div id="completion" class="completion hidden">
+          <h2>Geschafft!</h2>
+          <div class="score" id="finalScore">0/19</div>
+          <p id="finalText"></p>
+          <button id="playAgain" class="primary-btn">Noch einmal spielen</button>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer>Die Reihenfolge der Begriffe und Fragen wird bei jedem Start zufällig gemischt.</footer>
+</div>
+<script>
+const terms = [
+  {term:"SELECT", category:"SQL-Grundlagen", explanation:"Legt fest, welche Spalten im Ergebnis angezeigt werden sollen.", example:"SELECT name, stadt\nFROM users;"},
+  {term:"FROM", category:"SQL-Grundlagen", explanation:"Gibt an, aus welcher Tabelle die Daten gelesen werden.", example:"SELECT name\nFROM users;"},
+  {term:"WHERE", category:"SQL-Grundlagen", explanation:"Filtert Datensätze anhand einer Bedingung.", example:"SELECT name\nFROM users\nWHERE stadt = 'Kiel';"},
+  {term:"DISTINCT", category:"SQL-Grundlagen", explanation:"Entfernt doppelte Ergebniszeilen, sodass jeder unterschiedliche Wert nur einmal erscheint.", example:"SELECT DISTINCT stadt\nFROM users;"},
+  {term:"ORDER BY", category:"Sortieren und Gruppieren", explanation:"Sortiert die Ergebniszeilen nach einer oder mehreren Spalten.", example:"SELECT name\nFROM users\nORDER BY name;"},
+  {term:"GROUP BY", category:"Sortieren und Gruppieren", explanation:"Fasst Datensätze mit gleichen Werten zu Gruppen zusammen, zum Beispiel um pro Stadt eine Anzahl zu berechnen.", example:"SELECT stadt, COUNT(*)\nFROM users\nGROUP BY stadt;"},
+  {term:"ASC", category:"Sortieren und Gruppieren", explanation:"Sortiert aufsteigend, zum Beispiel alphabetisch von A nach Z oder Zahlen von klein nach groß.", example:"SELECT name\nFROM users\nORDER BY name ASC;"},
+  {term:"DESC", category:"Sortieren und Gruppieren", explanation:"Sortiert absteigend, zum Beispiel alphabetisch von Z nach A oder Zahlen von groß nach klein.", example:"SELECT name, groesse\nFROM users\nORDER BY groesse DESC;"},
+  {term:"LIMIT", category:"Sortieren und Gruppieren", explanation:"Begrenzt, wie viele Ergebniszeilen ausgegeben werden, zum Beispiel auf die ersten 10.", example:"SELECT name\nFROM users\nLIMIT 10;"},
+  {term:"JOIN", category:"Tabellen verknüpfen", explanation:"Verknüpft Datensätze aus mehreren Tabellen, damit zusammengehörige Informationen gemeinsam ausgegeben werden können.", example:"SELECT users.name, fotos.titel\nFROM users\nJOIN fotos ON fotos.user_id = users.id;"},
+  {term:"ON", category:"Tabellen verknüpfen", explanation:"Legt bei einem JOIN fest, über welche Bedingung die Tabellen miteinander verbunden werden, häufig über Schlüssel.", example:"SELECT users.name, fotos.titel\nFROM users\nJOIN fotos\n  ON fotos.user_id = users.id;"},
+  {term:"Primärschlüssel", category:"Schlüssel und Beziehungen", explanation:"Eine Spalte, deren Wert jede Zeile einer Tabelle eindeutig identifiziert (meist eine ID). Kein Wert darf doppelt vorkommen oder fehlen – so lässt sich jeder Datensatz genau ansprechen.", example:"Tabelle users:\nid | name\n 1 | Anna\n 2 | Ben     ← id ist der Primärschlüssel\n\nSELECT name\nFROM users\nWHERE id = 2;"},
+  {term:"Fremdschlüssel", category:"Schlüssel und Beziehungen", explanation:"Eine Spalte, die auf den Primärschlüssel einer anderen Tabelle verweist. So wird jede Zeile mit der passenden Zeile der anderen Tabelle verbunden.", example:"Tabelle fotos:\nid | titel  | user_id\n 1 | Strand | 2   ← user_id ist der Fremdschlüssel\n\nuser_id verweist auf users.id (Ben)\n\nSELECT users.name, fotos.titel\nFROM fotos\nJOIN users ON fotos.user_id = users.id;"},
+  {term:"1:n", category:"Schlüssel und Beziehungen", explanation:"Eine Eins-zu-viele-Beziehung: Ein Objekt kann mit vielen Objekten der anderen Tabelle verbunden sein, die jeweils nur zu einem Objekt zurückgehören.", example:"Ein User hat viele Fotos:\nfotos.user_id → users.id"},
+  {term:"n:m", category:"Schlüssel und Beziehungen", explanation:"Eine Viele-zu-viele-Beziehung: Auf beiden Seiten können viele Objekte miteinander verbunden sein. Dafür wird in relationalen Datenbanken üblicherweise eine Hilfstabelle benötigt.", example:"Schüler ↔ Kurse über eine Hilfstabelle:\nbelegungen (schueler_id, kurs_id)"},
+  {term:"AND", category:"Bedingungen", explanation:"Verknüpft Bedingungen. Alle verbundenen Bedingungen müssen wahr sein.", example:"SELECT name\nFROM users\nWHERE stadt = 'Kiel' AND rolle = 'Lehrkraft';"},
+  {term:"OR", category:"Bedingungen", explanation:"Verknüpft Bedingungen. Mindestens eine der verbundenen Bedingungen muss wahr sein.", example:"SELECT name\nFROM users\nWHERE stadt = 'Kiel' OR stadt = 'Lübeck';"},
+  {term:"NOT", category:"Bedingungen", explanation:"Kehrt eine Bedingung um: Aus wahr wird falsch und aus falsch wird wahr.", example:"SELECT name\nFROM users\nWHERE NOT stadt = 'Kiel';"},
+  {term:"LIKE", category:"Bedingungen", explanation:"Sucht nach Mustern in Texten. % steht für beliebig viele Zeichen, _ für genau ein Zeichen.", example:"SELECT name\nFROM users\nWHERE name LIKE 'Al%';"},
+  {term:"COUNT", category:"Funktionen", explanation:"Zählt Datensätze oder Werte. Häufig in Verbindung mit GROUP BY verwendet.", example:"SELECT COUNT(*)\nFROM users;"},
+  {term:"SUM", category:"Funktionen", explanation:"Berechnet die Summe numerischer Werte einer Spalte.", example:"SELECT SUM(preis)\nFROM bestellungen;"},
+  {term:"AVG", category:"Funktionen", explanation:"Berechnet den Durchschnitt numerischer Werte einer Spalte.", example:"SELECT AVG(groesse)\nFROM users;"},
+  {term:"MIN", category:"Funktionen", explanation:"Ermittelt den kleinsten Wert einer Spalte.", example:"SELECT MIN(groesse)\nFROM users;"},
+  {term:"MAX", category:"Funktionen", explanation:"Ermittelt den größten Wert einer Spalte.", example:"SELECT MAX(groesse)\nFROM users;"},
+  {term:"SQL", category:"Grundbegriffe", explanation:"Structured Query Language: eine Sprache, mit der relationale Datenbanken unter anderem abgefragt und verändert werden.", example:"SELECT * FROM users;"},
+  {term:"DBMS", category:"Grundbegriffe", explanation:"Datenbankmanagementsystem. Es verwaltet die Datenbank und bildet die Schnittstelle zwischen Anwendungen und den gespeicherten Daten.", example:"Beispiele: MySQL, PostgreSQL, SQLite"},
+  {term:"Metadaten", category:"Grundbegriffe", explanation:"Daten über die Struktur und Organisation der Datenbank, also zum Beispiel Informationen darüber, welche Tabellen und Spalten es gibt.", example:"SHOW TABLES;\nDESCRIBE users;"}
+];
+
+const questions = [
+  {q:"Welche drei Befehle bilden die Grundstruktur einer SQL-Abfrage?", a:["SELECT","FROM","WHERE"], ex:"SELECT name, stadt\nFROM users\nWHERE stadt = 'Kiel';"},
+  {q:"Mit welchem Befehl entfernst du doppelte Ergebniszeilen, sodass jeder Städtename nur einmal erscheint?", a:["DISTINCT"], ex:"SELECT DISTINCT stadt\nFROM users;"},
+  {q:"Welche beiden Befehle brauchst du, um eine Ergebnisliste alphabetisch nach Namen zu sortieren?", a:["ORDER BY","ASC"], ex:"SELECT name\nFROM users\nORDER BY name ASC;"},
+  {q:"Welchen Befehl wählst du zusätzlich zu ORDER BY, wenn die höchsten Werte zuerst erscheinen sollen?", a:["DESC"], ex:"SELECT name, groesse\nFROM users\nORDER BY groesse DESC;"},
+  {q:"Mit welchem Befehl begrenzt du die Ausgabe auf die ersten zehn Ergebniszeilen?", a:["LIMIT"], ex:"SELECT name\nFROM users\nLIMIT 10;"},
+  {q:"Mit welchem Befehl verknüpfst du Namen aus einer Tabelle mit den dazugehörigen Fotos aus einer zweiten Tabelle?", a:["JOIN"], ex:"SELECT users.name, fotos.titel\nFROM users\nJOIN fotos ON fotos.user_id = users.id;"},
+  {q:"Welche zwei Befehle gehören zu einer Tabellenverknüpfung, bei der festgelegt wird, welche Werte zueinander passen?", a:["JOIN","ON"], ex:"SELECT users.name, fotos.titel\nFROM users\nJOIN fotos\n  ON fotos.user_id = users.id;"},
+  {q:"Welcher Schlüssel identifiziert einen Datensatz innerhalb einer Tabelle eindeutig?", a:["Primärschlüssel"], ex:"Tabelle users:\nid | name\n 1 | Anna\n 2 | Ben     ← id ist der Primärschlüssel\n\nSELECT name\nFROM users\nWHERE id = 2;"},
+  {q:"Welcher Schlüssel verweist auf den Primärschlüssel einer anderen Tabelle?", a:["Fremdschlüssel"], ex:"Tabelle fotos:\nid | titel  | user_id\n 1 | Strand | 2   ← user_id ist der Fremdschlüssel\n\nuser_id verweist auf users.id (Ben)\n\nSELECT users.name, fotos.titel\nFROM fotos\nJOIN users ON fotos.user_id = users.id;"},
+  {q:"Eine Klasse hat viele Schüler:innen, aber jede:r Schüler:in gehört genau einer Klasse an. Welche Kardinalität beschreibt das?", a:["1:n"], ex:"Ein User hat viele Fotos:\nfotos.user_id → users.id"},
+  {q:"Schüler:innen besuchen mehrere Kurse und jeder Kurs hat mehrere Schüler:innen. Welche Kardinalität beschreibt das?", a:["n:m"], ex:"Schüler ↔ Kurse über eine Hilfstabelle:\nbelegungen (schueler_id, kurs_id)"},
+  {q:"Welche drei Befehle können Bedingungen logisch miteinander verknüpfen oder umkehren?", a:["AND","OR","NOT"], ex:"WHERE stadt = 'Kiel' AND rolle = 'Lehrkraft'\nWHERE stadt = 'Kiel' OR stadt = 'Lübeck'\nWHERE NOT stadt = 'Kiel'"},
+  {q:"Mit welchem Befehl suchst du nach Namen, die mit „Al“ beginnen (Mustersuche in Texten)?", a:["LIKE"], ex:"SELECT name\nFROM users\nWHERE name LIKE 'Al%';"},
+  {q:"Welche beiden Befehle passen typischerweise zusammen, um zu zählen, wie viele Fotos zu jedem Benutzer gehören?", a:["COUNT","GROUP BY"], ex:"SELECT user_id, COUNT(*)\nFROM fotos\nGROUP BY user_id;"},
+  {q:"Mit welchem Befehl berechnest du die durchschnittliche Körpergröße?", a:["AVG"], ex:"SELECT AVG(groesse)\nFROM users;"},
+  {q:"Welche beiden Befehle brauchst du, um den kleinsten und den größten Wert einer Spalte zu ermitteln?", a:["MIN","MAX"], ex:"SELECT MIN(groesse), MAX(groesse)\nFROM users;"},
+  {q:"Mit welchem Befehl berechnest du die Gesamtsumme der Beträge in einer Spalte?", a:["SUM"], ex:"SELECT SUM(preis)\nFROM bestellungen;"},
+  {q:"Welche Befehle fassen viele Werte einer Spalte zu einem einzigen Wert zusammen?", a:["COUNT","SUM","AVG","MIN","MAX"], ex:"SELECT COUNT(*), SUM(preis), AVG(preis), MIN(preis), MAX(preis)\nFROM bestellungen;"},
+  {q:"Welche beiden Befehle sortieren das Ergebnis bzw. fassen Datensätze mit gleichen Werten zu Gruppen zusammen?", a:["ORDER BY","GROUP BY"], ex:"SELECT stadt, COUNT(*)\nFROM users\nGROUP BY stadt\nORDER BY stadt;"}
+];
+
+const $ = id => document.getElementById(id);
+const shuffle = arr => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+function exampleBlock(text, labelText) {
+  const frag = document.createDocumentFragment();
+  if (labelText) {
+    const label = document.createElement("span"); label.className = "example-label"; label.textContent = labelText;
+    frag.appendChild(label);
+  }
+  const pre = document.createElement("pre"); pre.className = "example"; pre.textContent = text;
+  frag.appendChild(pre);
+  return frag;
+}
+let mode = "training", activeTerm = null, testQuestions = [], questionIndex = 0, selected = new Set(), checked = false, correct = 0, answered = 0;
+
+function setMode(next) {
+  mode = next;
+  closePopover();
+  $("trainingView").classList.toggle("hidden", mode !== "training");
+  $("testView").classList.toggle("hidden", mode !== "test");
+  $("trainingMode").setAttribute("aria-pressed", String(mode === "training"));
+  $("testMode").setAttribute("aria-pressed", String(mode === "test"));
+  if (mode === "test" && testQuestions.length === 0) startTest();
+}
+$("trainingMode").addEventListener("click", () => setMode("training"));
+$("testMode").addEventListener("click", () => setMode("test"));
+
+function renderTrainingTerms() {
+  const root = $("trainingTerms");
+  root.innerHTML = "";
+  shuffle(terms).forEach(item => {
+    const btn = document.createElement("button");
+    btn.className = "term";
+    btn.textContent = item.term;
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      if (btn.classList.contains("selected")) { closePopover(); return; }
+      showPopover(btn, item);
+    });
+    root.appendChild(btn);
+  });
+}
+let popover = null, popoverBtn = null;
+function closePopover() {
+  if (popover) popover.remove();
+  if (popoverBtn) popoverBtn.classList.remove("selected");
+  popover = popoverBtn = null;
+}
+function showPopover(btn, item) {
+  closePopover();
+  popoverBtn = btn; btn.classList.add("selected");
+  const pop = document.createElement("div");
+  pop.className = "popover"; pop.setAttribute("role", "dialog");
+  const tag = document.createElement("span"); tag.className = "pill"; tag.textContent = item.category;
+  const h = document.createElement("h3"); h.textContent = item.term;
+  const p = document.createElement("p"); p.textContent = item.explanation;
+  pop.append(tag, h, p);
+  if (item.example) pop.appendChild(exampleBlock(item.example, "Beispiel"));
+  pop.addEventListener("click", e => e.stopPropagation());
+  document.body.appendChild(pop);
+  popover = pop;
+  const r = btn.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+  const sx = window.scrollX, sy = window.scrollY, gap = 12;
+  const above = r.top >= ph + gap + 8;
+  pop.classList.add(above ? "above" : "below");
+  let left = r.left + r.width / 2 - pw / 2;
+  left = Math.max(12, Math.min(left, document.documentElement.clientWidth - pw - 12));
+  pop.style.left = (left + sx) + "px";
+  pop.style.top = (above ? r.top - ph - gap : r.bottom + gap) + sy + "px";
+  pop.style.setProperty("--arrow-x", Math.max(18, Math.min(r.left + r.width / 2 - left, pw - 18)) + "px");
+}
+document.addEventListener("click", closePopover);
+document.addEventListener("keydown", e => { if (e.key === "Escape") closePopover(); });
+window.addEventListener("resize", closePopover);
+function startTest() {
+  testQuestions = shuffle(questions);
+  questionIndex = 0; selected = new Set(); checked = false; correct = 0; answered = 0;
+  $("completion").classList.add("hidden");
+  $("questionText").classList.remove("hidden");
+  $("questionNumber").classList.remove("hidden");
+  $("questionHint").classList.remove("hidden");
+  $("progressFill").style.width = "0%";
+  $("checkAnswer").classList.remove("hidden");
+  $("correctCount").textContent = 0;
+  $("answeredCount").textContent = 0;
+  renderQuestion();
+}
+function renderQuestion() {
+  const item = testQuestions[questionIndex];
+  selected = new Set(); checked = false;
+  $("questionNumber").textContent = `FRAGE ${questionIndex + 1} VON ${testQuestions.length}`;
+  $("progressFill").style.width = `${(questionIndex / testQuestions.length) * 100}%`;
+  $("questionText").textContent = item.q;
+  $("questionHint").textContent = "Klicke den passenden Begriff oder die passenden Begriffe in der Wand an.";
+  $("feedback").className = "feedback hidden"; $("feedback").textContent = "";
+  $("checkAnswer").classList.remove("hidden"); $("checkAnswer").disabled = false;
+  $("nextQuestion").classList.add("hidden");
+  const root = $("testTerms"); root.innerHTML = "";
+  shuffle(terms).forEach(t => {
+    const btn = document.createElement("button");
+    btn.className = "term"; btn.textContent = t.term;
+    btn.setAttribute("aria-pressed", "false");
+    btn.addEventListener("click", () => {
+      if (checked) return;
+      if (selected.has(t.term)) selected.delete(t.term); else selected.add(t.term);
+      btn.classList.toggle("selected", selected.has(t.term));
+      btn.setAttribute("aria-pressed", String(selected.has(t.term)));
+    });
+    root.appendChild(btn);
+  });
+}
+function checkAnswer() {
+  if (checked) return;
+  if (selected.size === 0) {
+    $("feedback").className = "feedback bad";
+    $("feedback").textContent = "Wähle zuerst mindestens einen Begriff aus.";
+    return;
+  }
+  checked = true; answered++;
+  const item = testQuestions[questionIndex];
+  const expected = new Set(item.a);
+  const isCorrect = selected.size === expected.size && [...selected].every(x => expected.has(x));
+  if (isCorrect) correct++;
+  document.querySelectorAll("#testTerms .term").forEach(btn => {
+    const t = btn.textContent;
+    if (expected.has(t)) btn.classList.add("correct");
+    else if (selected.has(t)) btn.classList.add("wrong");
+    btn.disabled = true;
+  });
+  $("correctCount").textContent = correct;
+  $("answeredCount").textContent = answered;
+  $("feedback").className = `feedback ${isCorrect ? "good" : "bad"}`;
+  $("feedback").textContent = isCorrect ? "Richtig! Gut erkannt." : `Noch nicht ganz. Richtig ist: ${item.a.join(", ")}.`;
+  if (item.ex) $("feedback").appendChild(exampleBlock(item.ex, "So sieht das in SQL aus"));
+  $("checkAnswer").classList.add("hidden");
+  if (questionIndex === testQuestions.length - 1) {
+    $("nextQuestion").textContent = "Ergebnis anzeigen";
+  } else $("nextQuestion").textContent = "Nächste Frage";
+  $("nextQuestion").classList.remove("hidden");
+}
+function nextQuestion() {
+  if (questionIndex < testQuestions.length - 1) {
+    questionIndex++; renderQuestion();
+  } else {
+    $("progressFill").style.width = "100%";
+    $("questionText").classList.add("hidden");
+    $("questionNumber").classList.add("hidden");
+    $("questionHint").classList.add("hidden");
+    $("testTerms").innerHTML = "";
+    $("feedback").className = "feedback hidden"; $("feedback").textContent = "";
+    $("checkAnswer").classList.add("hidden");
+    $("nextQuestion").classList.add("hidden");
+    $("completion").classList.remove("hidden");
+    $("finalScore").textContent = `${correct}/${testQuestions.length}`;
+    const percent = Math.round(correct / testQuestions.length * 100);
+    $("finalText").textContent = percent >= 85 ? "Sehr gut – die Begriffe sitzen schon ziemlich sicher." : percent >= 60 ? "Gute Grundlage. Schau dir die unsicheren Begriffe im Trainingsmodus noch einmal an." : "Wiederhole die Erklärungen im Trainingsmodus und probiere es danach erneut.";
+  }
+}
+$("checkAnswer").addEventListener("click", checkAnswer);
+$("nextQuestion").addEventListener("click", nextQuestion);
+$("startTestBtn").addEventListener("click", () => { setMode("test"); startTest(); });
+$("restartBtn").addEventListener("click", () => { if (mode === "test") startTest(); else { closePopover(); renderTrainingTerms(); } });
+$("playAgain").addEventListener("click", startTest);
+renderTrainingTerms();
+</script>
+</body>
+</html>
