@@ -89,6 +89,26 @@ main { padding-bottom: 48px; }
 .txt-opt:disabled { cursor: default; }
 .cmp { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 14px; margin-top: 16px; }
 .card { border: 2px solid var(--line); border-radius: 14px; padding: 12px 14px 16px; background: var(--panel2); min-width: 0; overflow-x: auto; }
+.card.pickable { cursor: pointer; }
+.card.pickable:hover { border-color: var(--accent); }
+.card.sel { border-color: #2f6fd6; background: var(--accent-soft); }
+.card.wrong { border-color: var(--red); background: var(--red-soft); }
+.card.missed { border-color: var(--green); border-style: dashed; }
+.txt-opt.sel { border-color: #2f6fd6; background: var(--accent-soft); }
+.num-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+.num-in { font: 800 1.4rem/1 system-ui, sans-serif; width: 180px; padding: 12px 14px; border: 2px solid var(--line); border-radius: 12px; text-align: center; color: var(--text); background: var(--panel); }
+.num-in:focus { outline: none; border-color: var(--accent); }
+.num-in.good { border-color: var(--green); background: var(--green-soft); }
+.num-in.bad { border-color: var(--red); background: var(--red-soft); }
+.findable .blk { cursor: pointer; }
+.blk.picked > svg.bg path { stroke: #2f6fd6; stroke-width: 3.5; }
+.blk.good > svg.bg path { stroke: #138a5e; stroke-width: 3.5; }
+.blk.wrong > svg.bg path { stroke: #d6364a; stroke-width: 3.5; }
+.blk.missed > svg.bg path { stroke: #138a5e; stroke-width: 3.5; stroke-dasharray: 6 3; }
+.blk.reporter.picked { box-shadow: 0 0 0 3px #2f6fd6; }
+.blk.reporter.good { box-shadow: 0 0 0 3px #138a5e; }
+.blk.reporter.wrong { box-shadow: 0 0 0 3px #d6364a; }
+.blk.reporter.missed { box-shadow: 0 0 0 3px #138a5e; }
 .card.ok { border-color: var(--green); background: var(--green-soft); }
 .card h4 { margin: 0 0 10px; font-size: .8rem; letter-spacing: .1em; color: var(--muted); }
 .card.ok h4 { color: var(--green); }
@@ -465,301 +485,299 @@ function scriptEl(blocks) {
 function blockOnly(inst) { return renderBlock(inst, {}); }
 
 /* ================= Aufgaben ================= */
+// sc = ein Skript (Array von Blöcken) oder mehrere: [S('Katze', [...]), S('Hund', [...])]
+const S = (label, blocks) => ({ label, blocks });
+const X = inst => { inst.bug = true; return inst; }; // markiert den fehlerhaften Block in "Fehler finden"
 const T = [];
-const pick = (cat, q, good, bad, ex) => T.push({ type: 'pick', cat, q, ex, opts: [...good.map(b => ({ b, ok: true })), ...bad.map(b => ({ b, ok: false }))] });
-const cmp = (cat, q, A, B, ans, ex) => T.push({ type: 'cmp', cat, q, A, B, ans, ex });
-const pred = (cat, q, script, good, bad, ex) => T.push({ type: 'pred', cat, q, script, good, bad, ex });
+const pick = (cat, q, good, bad, ex, sc) => T.push({ type: 'pick', cat, q, ex, sc, opts: [...good.map(b => ({ b, ok: true })), ...bad.map(b => ({ b, ok: false }))] });
+const cmp = (cat, q, scripts, ans, ex) => T.push({ type: 'cmp', cat, q, scripts, ans, ex });
+const pred = (cat, q, sc, good, bad, ex) => T.push({ type: 'pred', cat, q, sc, good, bad, ex });
+const num = (cat, q, sc, ans, ex, unit) => T.push({ type: 'num', cat, q, sc, ans, ex, unit });
+const find = (cat, q, sc, ex) => T.push({ type: 'find', cat, q, sc, ex });
 const build = (cat, q, pal, sol, ex) => T.push({ type: 'build', cat, q, pal, sol, ex });
-const bcat = (id, ex) => T.push({ type: 'cat', cat: L[id].cat, id, ex });
+const P = K('varPunkte'), LB = K('varLeben');
 
 /* ---- Bewegung ---- */
-pick('motion', 'Die Figur soll ein Stück in die Richtung laufen, in die sie gerade schaut. Welcher Block macht das?',
-  [K('move', 10)], [K('turnR', 15), K('changeY', 10), K('setX', 0)],
-  '„gehe 10er-Schritt“ bewegt die Figur in Blickrichtung. „ändere y“ verschiebt sie dagegen immer senkrecht – egal, wohin sie schaut.');
-pick('motion', 'Welche Blöcke ändern die Blickrichtung der Figur?',
-  [K('turnR', 15), K('turnL', 15), K('dir', 90)], [K('move', 10), K('changeX', 10)],
-  'Drehen und „setze Richtung“ ändern die Blickrichtung. „gehe“ und „ändere x“ verändern nur den Ort.');
-pick('motion', 'Welcher Block setzt die Figur sofort an eine genaue Stelle der Bühne?',
-  [K('gotoxy', 0, 0)], [K('move', 10), K('turnR', 15), K('bounce')],
-  '„gehe zu x: y:“ springt ohne Zwischenschritte zur angegebenen Stelle.');
-pick('motion', 'Die Figur soll in 2 Sekunden langsam und sichtbar zu einem Punkt wandern. Welcher Block passt?',
-  [K('glide', 2, 100, 0)], [K('gotoxy', 100, 0), K('changeX', 100), K('setX', 100)],
-  '„gleite in … Sek. zu x: y:“ bewegt die Figur sanft. „gehe zu x: y:“ springt dagegen sofort.');
-pick('motion', 'Die Figur soll nicht aus der Bühne laufen, sondern am Rand umdrehen. Welcher Block hilft dabei?',
-  [K('bounce')], [K('goto', 'Zufallsposition'), K('dir', 90), K('changeX', 10)],
-  '„pralle vom Rand ab“ dreht die Figur um, sobald sie den Bühnenrand berührt.');
-pick('motion', 'Welche Blöcke verschieben die Figur NUR nach links oder rechts?',
-  [K('changeX', 10), K('setX', 0)], [K('changeY', 10), K('setY', 0), K('gotoxy', 0, 0)],
-  'Nur „ändere x um“ und „setze x auf“ betreffen ausschließlich die waagerechte Position. „gehe zu x: y:“ setzt beide Werte.');
-pick('motion', 'Welcher Block liefert dir die aktuelle Blickrichtung der Figur als Zahl?',
-  [K('direction')], [K('xpos'), K('ypos'), K('size')],
-  'Die runden Blöcke liefern Werte. „Richtung“ gibt die Blickrichtung in Grad zurück (90 = rechts).');
+num('motion', 'Die Figur schaut nach rechts. Wie groß ist ihre x-Position am Ende?',
+  [K('flag'), K('gotoxy', 0, 0), K('dir', 90), K('repeat', 10, [K('move', 10)])], 100,
+  'Die Schleife läuft 10 Mal und geht jedes Mal 10 Schritte: 10 · 10 = 100.');
+num('motion', 'Die Figur schaut nach OBEN (Richtung 0). Wie groß ist ihre y-Position am Ende?',
+  [K('flag'), K('gotoxy', 10, 20), K('dir', 0), K('move', 30), K('changeX', -5)], 50,
+  'Richtung 0 bedeutet nach oben: 20 + 30 = 50. „ändere x“ verändert y nicht.');
+num('motion', 'In welche Richtung (in Grad) schaut die Figur am Ende?',
+  [K('flag'), K('dir', 90), K('turnL', 45), K('turnR', 135)], 180,
+  '90 − 45 = 45, dann 45 + 135 = 180. Links drehen verkleinert die Gradzahl, rechts drehen vergrößert sie.', 'Grad');
+num('motion', 'Wie groß ist die x-Position der Figur am Ende?',
+  [K('flag'), K('gotoxy', -50, 30), K('changeX', 20), K('changeY', -40), K('setX', 5), K('changeX', 10)], 15,
+  '„setze x auf 5“ überschreibt alles Bisherige. Danach nur noch +10: x = 15. Die Werte für y spielen keine Rolle.');
+num('motion', 'In welche Richtung (in Grad) schaut die Figur am Ende?',
+  [K('flag'), K('dir', 90), K('repeat', 4, [K('turnR', 90)])], 90,
+  '4 · 90 = 360 Grad – eine volle Umdrehung. Die Figur schaut wieder in die Startrichtung 90.', 'Grad');
+pick('motion', 'Die Figur schaut nach rechts. Mit welchem Block geht sie ein Stück nach UNTEN?',
+  [K('changeY', -10)], [K('changeY', 10), K('changeX', -10), K('move', 10)],
+  'y wird kleiner, wenn man nach unten geht. Positive y-Werte bedeuten nach oben.');
+pick('motion', 'Welche Blöcke bringen die Figur auf den Punkt x: 0, y: 0 – egal, wo sie vorher war?',
+  [K('gotoxy', 0, 0), K('glide', 2, 0, 0)], [K('setX', 0), K('setY', 0), K('goto', 'Mauszeiger')],
+  'Nur „gehe zu x: y:“ und „gleite … zu x: y:“ setzen beide Koordinaten. „setze x auf 0“ ändert nur x.');
+pick('motion', 'Die Figur läuft in einer Schleife immer weiter und verschwindet am Bühnenrand. Welcher Block, in die Schleife eingebaut, lässt sie zurückkehren?',
+  [K('bounce')], [K('dir', 90), K('changeX', 10), K('hide')],
+  '„pralle vom Rand ab“ dreht die Figur am Rand um. „setze Richtung auf 90“ würde sie immer wieder nach rechts drehen.',
+  [K('flag'), K('forever', [K('move', 10)])]);
+pick('motion', 'Welche Blöcke ändern NUR die Blickrichtung, nicht den Ort der Figur?',
+  [K('turnR', 15), K('dir', 90), K('pointTo', 'Mauszeiger')], [K('move', 10), K('changeX', 10), K('glide', 1, 0, 0)],
+  'Drehen, „setze Richtung“ und „drehe dich zu“ verändern nur die Richtung. Alle anderen verschieben die Figur.');
+find('motion', 'Die Figur soll sich ständig im Uhrzeigersinn drehen, dreht sich aber andersherum. Klicke den fehlerhaften Block an.',
+  [K('flag'), K('forever', [X(K('turnL', 15))])],
+  'Im Uhrzeigersinn dreht „drehe ↻“. Der Block „drehe ↺“ dreht gegen den Uhrzeigersinn.');
+find('motion', 'Bei „Pfeil nach oben“ soll die Figur nach oben gehen, sie geht aber nach unten. Klicke den fehlerhaften Block an.',
+  [K('keyPressed', 'Pfeil nach oben'), X(K('changeY', -10))],
+  'Nach oben bedeutet positives y: „ändere y um 10“.');
+find('motion', 'Die Figur soll von der Mitte aus in 2 Sekunden nach (100, 50) gleiten. Man sieht aber keine Bewegung. Klicke den Block, der das verhindert.',
+  [K('flag'), X(K('gotoxy', 100, 50)), K('glide', 2, 100, 50)],
+  'Die Figur springt zuerst sofort zum Ziel – dann gibt es nichts mehr zu gleiten. Dort müsste gotoxy (0, 0) stehen.');
 
 /* ---- Aussehen ---- */
-pick('looks', 'Die Figur soll 2 Sekunden „Hallo!“ sagen, danach soll die Sprechblase wieder verschwinden. Welcher Block passt?',
-  [K('sayFor', 'Hallo!', 2)], [K('say', 'Hallo!'), K('thinkFor', 'Hmm...', 2), K('show')],
-  '„sage … für … Sekunden“ blendet die Blase selbst wieder aus. „sage …“ ohne Zeit bleibt stehen, bis ein anderer „sage“-Block kommt.');
-pick('looks', 'Welche Blöcke machen die Figur größer (wenn sie vorher 100 % groß war)?',
-  [K('changeSize', 10), K('setSize', 200)], [K('changeSize', -10), K('setSize', 50)],
-  'Positive Werte bei „ändere Größe“ und alles über 100 % bei „setze Größe“ vergrößern. Negative Werte bzw. unter 100 % verkleinern.');
-pick('looks', 'Wie machst du die Figur unsichtbar?',
-  [K('hide')], [K('show'), K('clearEffects'), K('setSize', 100)],
-  '„verstecke dich“ blendet die Figur aus, „zeige dich“ holt sie zurück.');
-pick('looks', 'Eine Figur soll beim Laufen mit den Beinen wackeln (Animation). Welcher Block wird dafür oft in einer Schleife benutzt?',
-  [K('nextCostume')], [K('show'), K('changeEffect', 'Farbe', 25), K('say', 'Hallo!')],
-  'Jedes Kostüm ist ein anderes Bild. Wechselt man schnell zum nächsten Kostüm, wirkt es wie ein Film.');
-pick('looks', 'Welche Blöcke zeigen eine Gedankenblase (statt einer Sprechblase)?',
-  [K('think', 'Hmm...'), K('thinkFor', 'Hmm...', 2)], [K('say', 'Hallo!'), K('sayFor', 'Hallo!', 2)],
-  '„denke“ zeigt eine Wolke mit Punkten, „sage“ eine Sprechblase.');
-pick('looks', 'Welcher Block nimmt alle Farb- und Grafikeffekte von der Figur weg?',
-  [K('clearEffects')], [K('hide'), K('setSize', 100), K('switchCostume', 'Kostüm1')],
-  '„schalte Grafikeffekte aus“ setzt Effekte wie Farbe oder Wirbel zurück.');
-pick('looks', 'Die Figur soll vor allen anderen Figuren stehen. Welcher Block bringt sie nach vorne?',
-  [K('goFront', 'vorderster')], [K('show'), K('changeSize', 10), K('nextCostume')],
-  '„gehe zu vorderster Ebene“ legt die Figur vor alle anderen.');
-pick('looks', 'Die Figur soll ihre Farbe ein Stück verändern. Welcher Block passt?',
-  [K('changeEffect', 'Farbe', 25)], [K('setSize', 150), K('show'), K('nextCostume')],
-  'Mit „ändere Effekt Farbe um …“ wird der Farbton der Figur schrittweise verschoben.');
+num('looks', 'Wie groß ist die Figur am Ende (in %)?',
+  [K('flag'), K('setSize', 100), K('changeSize', 50), K('changeSize', -30), K('changeSize', 10)], 130,
+  '100 + 50 = 150, − 30 = 120, + 10 = 130.', '%');
+num('looks', 'Wie groß ist die Figur am Ende (in %)?',
+  [K('flag'), K('setSize', 50), K('repeat', 3, [K('changeSize', 10)])], 80,
+  'Start bei 50 %, dann dreimal +10: 80 %.', '%');
+pick('looks', 'Die Animation läuft viel zu schnell. Welcher Block, in die Schleife eingebaut, macht sie langsamer?',
+  [K('wait', 0.2)], [K('changeSize', 10), K('clearEffects'), K('show')],
+  'Ohne Pause wechselt das Kostüm in jedem Bild. Mit „warte 0.2 Sekunden“ bleibt jedes Kostüm kurz stehen.',
+  [K('flag'), K('forever', [K('nextCostume')])]);
+pick('looks', 'Die Figur soll sofort auf genau die halbe Größe wechseln – egal, wie groß sie vorher war. Welcher Block passt?',
+  [K('setSize', 50)], [K('changeSize', -50), K('changeSize', 50), K('setSize', 200)],
+  '„setze Größe auf 50 %“ ist absolut. „ändere Größe um −50“ ist relativ und ergibt nur bei 100 % genau die Hälfte.');
+pick('looks', 'Welche Blöcke lassen eine Sprech- bzw. Gedankenblase stehen, bis sie ersetzt oder gelöscht wird?',
+  [K('say', 'Hallo!'), K('think', 'Hmm...')], [K('sayFor', 'Hallo!', 2), K('thinkFor', 'Hmm...', 2)],
+  'Nur die Varianten ohne Zeitangabe bleiben stehen. Mit „sage“ und leerem Text kann man eine Blase löschen.');
+pred('looks', 'Was sieht man 3 Sekunden nach dem Start?',
+  [K('flag'), K('sayFor', 'Hi', 2), K('think', 'Hmm...')],
+  ['Eine Gedankenblase mit „Hmm...“'], ['Eine Sprechblase mit „Hi“', 'Beide Blasen gleichzeitig', 'Gar keine Blase'],
+  '„sage Hi für 2 Sekunden“ endet nach 2 Sekunden. Danach folgt „denke Hmm...“, und diese Blase bleibt stehen.');
+find('looks', 'Nach einem Klick soll die Figur 2 Sekunden verschwinden und dann wieder auftauchen. Sie bleibt aber unsichtbar. Klicke den fehlerhaften Block an.',
+  [K('spriteClicked'), K('hide'), K('wait', 2), X(K('hide'))],
+  'Am Ende muss „zeige dich“ stehen – zweimal „verstecke dich“ macht die Figur nicht wieder sichtbar.');
+cmp('looks', 'Die Figur soll dauerhaft in gut sichtbarem Tempo animiert werden (etwa 10 Kostümwechsel pro Sekunde). Welche Skripte schaffen das?',
+  [[K('flag'), K('forever', [K('nextCostume'), K('wait', 0.1)])],
+   [K('flag'), K('forever', [K('nextCostume')])],
+   [K('flag'), K('nextCostume'), K('wait', 0.1)]], [0],
+  'A wechselt dauerhaft mit Pause. B wechselt ohne Pause so schnell, dass es flackert. C wechselt nur ein einziges Mal.');
 
 /* ---- Ereignisse ---- */
-pick('events', 'Das Skript soll starten, wenn auf die grüne Flagge geklickt wird. Welcher Block steht ganz oben?',
-  [K('flag')], [K('keyPressed', 'Leertaste'), K('spriteClicked'), K('receive', 'Nachricht1')],
-  '„Wenn Flagge angeklickt“ ist der klassische Start eines Programms.');
-pick('events', 'Das Skript soll starten, wenn man auf die Figur klickt. Welcher Block passt?',
-  [K('spriteClicked')], [K('flag'), K('mouseDown'), K('keyPressed', 'Leertaste')],
-  '„Wenn diese Figur angeklickt wird“ reagiert nur auf Klicks auf genau diese Figur.');
-pick('events', 'Welche Blöcke SENDEN eine Nachricht?',
-  [K('broadcast', 'Nachricht1'), K('broadcastWait', 'Nachricht1')], [K('receive', 'Nachricht1'), K('flag')],
-  '„sende“ und „sende und warte“ verschicken eine Nachricht. „Wenn ich … empfange“ ist die Gegenseite, die darauf reagiert.');
-pick('events', 'Welcher Block reagiert auf eine gesendete Nachricht?',
-  [K('receive', 'Nachricht1')], [K('broadcast', 'Nachricht1'), K('keyPressed', 'Leertaste'), K('spriteClicked')],
-  '„Wenn ich Nachricht1 empfange“ startet ein Skript, sobald irgendwo „sende Nachricht1“ ausgeführt wird.');
-pick('events', 'Das Skript soll starten, wenn die Taste „Pfeil nach oben“ gedrückt wird. Welcher Block ist richtig eingestellt?',
-  [K('keyPressed', 'Pfeil nach oben')], [K('keyPressed', 'Leertaste'), K('keyPressed', 'Pfeil nach unten'), K('flag')],
-  'Im Dropdown wählst du die Taste aus. Achte auf die genaue Beschriftung.');
-pick('events', 'Welche Blöcke starten ein Skript (gebogene Oberseite, kein Block darüber)?',
-  [K('flag'), K('receive', 'Nachricht1')], [K('broadcast', 'Nachricht1'), K('move', 10), K('wait', 1)],
-  'Blöcke mit der „Hut“-Form starten Skripte. Alle anderen werden unter einen solchen Block gehängt.');
+pick('events', 'Das Skript soll starten, sobald die Taste „a“ gedrückt wird. Welcher Block steht ganz oben?',
+  [K('keyPressed', 'a')], [K('keyDown', 'a'), K('flag'), K('keyPressed', 'Leertaste')],
+  '„Wenn Taste a gedrückt wird“ ist der Start-Block (Hut). „Taste a gedrückt?“ ist nur eine Abfrage und startet nichts.');
+pred('events', 'Wann sagt der Hund „Wau“?',
+  [S('Katze', [K('flag'), K('broadcast', 'Nachricht1'), K('wait', 1), K('broadcast', 'Nachricht2')]), S('Hund', [K('receive', 'Nachricht2'), K('say', 'Wau')])],
+  ['Nach etwa 1 Sekunde'], ['Sofort nach dem Start', 'Nie', 'Wenn man auf den Hund klickt'],
+  'Der Hund wartet auf „Nachricht2“. Die Katze sendet sie erst nach „Nachricht1“ und 1 Sekunde Wartezeit.');
+pred('events', 'Wann sagt die Katze „Fertig“?',
+  [S('Katze', [K('flag'), K('broadcastWait', 'Nachricht1'), K('say', 'Fertig')]), S('Hund', [K('receive', 'Nachricht1'), K('move', 100), K('wait', 2)])],
+  ['Erst nachdem der Hund fertig ist (nach etwa 2 Sekunden)'], ['Sofort nach dem Start', 'Nie', 'Sobald der Hund die Nachricht empfängt'],
+  '„sende … und warte“ hält die Katze an, bis alle empfangenden Skripte komplett durchgelaufen sind – hier inklusive „warte 2 Sekunden“.');
+find('events', 'Der Hund soll loslaufen, sobald die Katze angeklickt wird. Er bleibt aber stehen. Klicke den fehlerhaften Block an.',
+  [S('Katze', [K('spriteClicked'), K('broadcast', 'Nachricht1')]), S('Hund', [X(K('receive', 'Nachricht2')), K('move', 50)])],
+  'Die Katze sendet „Nachricht1“, der Hund wartet aber auf „Nachricht2“. Beide müssen dieselbe Nachricht verwenden.');
+num('events', 'Wie viele Skripte starten, wenn man auf die grüne Flagge klickt?',
+  [S('Katze', [K('flag'), K('move', 10)]), S('Hund', [K('flag'), K('say', 'Wau')]), S('Katze 2', [K('spriteClicked'), K('hide')]), S('Maus', [K('receive', 'Nachricht1'), K('show')])], 2,
+  'Nur Skripte mit „Wenn Flagge angeklickt“ starten. Das Klick- und das Nachrichten-Skript warten auf andere Ereignisse.');
+cmp('events', 'Die Figur soll „Hallo“ sagen, wenn die Leertaste gedrückt wird – auch wenn man sie später im Spiel drückt. Welche Skripte schaffen das?',
+  [[K('spriteClicked'), K('say', 'Hallo')],
+   [K('flag'), K('if', K('keyDown', 'Leertaste'), [K('say', 'Hallo')])],
+   [K('flag'), K('forever', [K('if', K('keyDown', 'Leertaste'), [K('say', 'Hallo')])])],
+   [K('keyPressed', 'Leertaste'), K('say', 'Hallo')]], [2, 3],
+  'B prüft die Taste nur einmal direkt nach dem Start. C prüft dauerhaft (Gameloop), D reagiert direkt auf den Tastendruck. A reagiert auf Klicks.');
 
 /* ---- Steuerung ---- */
-pick('control', 'Etwas soll für immer wiederholt werden, solange das Programm läuft. Welcher Block passt?',
-  [K('forever')], [K('repeat', 10), K('wait', 1), K('stop', 'alles')],
-  '„wiederhole fortlaufend“ ist eine Endlosschleife. Unter ihr kann kein Block mehr stehen.');
-pick('control', 'Die Figur soll genau 10 Mal etwas tun. Welche Schleife nimmst du?',
-  [K('repeat', 10)], [K('forever'), K('if'), K('waitUntil')],
-  '„wiederhole 10 mal“ ist eine Zählschleife mit fester Anzahl.');
-pick('control', 'Wenn eine Bedingung wahr ist, soll etwas passieren – sonst etwas anderes. Welcher Block passt?',
-  [K('ifElse')], [K('if'), K('repeatUntil'), K('waitUntil')],
-  '„falls … dann … sonst“ hat zwei Teile: einen für wahr und einen für falsch.');
-pick('control', 'Etwas soll nur dann passieren, wenn die Bedingung wahr ist. Ist sie falsch, passiert einfach nichts. Welcher Block passt?',
-  [K('if')], [K('repeat', 10), K('forever'), K('wait', 1)],
-  '„falls … dann“ ohne „sonst“ führt den Inhalt nur bei wahrer Bedingung aus.');
-pick('control', 'Welche Blöcke halten das Skript an (Pause), bis eine Zeit abgelaufen ist oder etwas eintritt?',
-  [K('wait', 1), K('waitUntil')], [K('repeat', 10), K('forever')],
-  '„warte … Sekunden“ pausiert für eine Zeit, „warte bis“ pausiert bis eine Bedingung wahr wird.');
-pick('control', 'Die Figur soll so lange laufen, bis sie den Rand berührt. Welche Schleife ist dafür gedacht?',
-  [K('repeatUntil')], [K('repeat', 10), K('forever'), K('waitUntil')],
-  '„wiederhole bis …“ prüft vor jedem Durchlauf die Bedingung und hört auf, wenn sie wahr ist.');
-pick('control', 'Welcher Block beendet das Programm vollständig?',
-  [K('stop', 'alles')], [K('wait', 1), K('hide'), K('forever')],
-  '„stoppe alles“ hält alle Skripte an.');
+pick('control', 'Die Figur läuft nach dem Start nur ein winziges Stück und bleibt dann stehen. In welchen Block packst du „gehe“ und „pralle“, damit sie dauerhaft läuft?',
+  [K('forever')], [K('repeat', 10), K('waitUntil'), K('if')],
+  'Ein Spiel braucht meist einen Gameloop: „wiederhole fortlaufend“. Mit „wiederhole 10 mal“ würde die Figur nach 10 Durchläufen wieder stehen bleiben.',
+  [K('flag'), K('move', 5), K('bounce')]);
+find('control', 'Der Satz „Ziel erreicht!“ wird nie gesagt. Klicke den Block, der nie ausgeführt wird.',
+  [K('flag'), K('forever', [K('move', 5)]), X(K('say', 'Ziel erreicht!'))],
+  'Eine „wiederhole fortlaufend“-Schleife endet nie. Alles darunter wird deshalb nie erreicht.');
+find('control', 'Die Figur soll jederzeit am Rand abprallen, tut es aber nur direkt nach dem Start. Klicke den Block, der an der falschen Stelle steht.',
+  [K('flag'), X(K('if', K('touching', 'Rand'), [K('bounce')])), K('forever', [K('move', 5)])],
+  'Die Abfrage steht vor der Endlosschleife und läuft deshalb nur ein einziges Mal. Sie gehört in die Schleife.');
+cmp('control', 'Die Figur soll sich mit der rechten Pfeiltaste nach rechts steuern lassen (Taste gedrückt halten = weiter laufen). Welche Skripte schaffen das?',
+  [[K('flag'), K('forever', [K('if', K('keyDown', 'Pfeil nach rechts'), [K('changeX', 5)])])],
+   [K('flag'), K('if', K('keyDown', 'Pfeil nach rechts'), [K('changeX', 5)])],
+   [K('flag'), K('forever', [K('changeX', 5)])],
+   [K('flag'), K('repeat', 10, [K('if', K('keyDown', 'Pfeil nach rechts'), [K('changeX', 5)])])]], [0],
+  'Nur A fragt dauerhaft die Taste ab. B prüft einmal, D nur 10 Mal, C läuft immer – unabhängig von der Taste.');
+num('control', 'Wie viele Schritte geht die Figur insgesamt?',
+  [K('flag'), K('repeat', 3, [K('move', 10), K('repeat', 2, [K('move', 5)])])], 60,
+  'Ein Durchlauf: 10 + 2 · 5 = 20 Schritte. Dreimal ergibt 60.', 'Schritte');
+num('control', 'Welchen Wert hat Punkte am Ende?',
+  [K('flag'), K('setVar', 'Punkte', 0), K('repeat', 5, [K('changeVar', 'Punkte', 1), K('if', K('gt', P, 3), [K('changeVar', 'Punkte', 10)])])], 25,
+  'Durchläufe 1–3: Punkte 1, 2, 3 (nicht > 3). Durchlauf 4: 4 → +10 = 14. Durchlauf 5: 15 → +10 = 25.');
+pick('control', 'Welche Blöcke haben eine sechseckige Lücke für eine Bedingung?',
+  [K('if'), K('ifElse'), K('repeatUntil'), K('waitUntil')], [K('wait', 1), K('repeat', 10), K('forever'), K('stop', 'alles')],
+  '„falls“, „falls … sonst“, „wiederhole bis“ und „warte bis“ prüfen eine Bedingung. „wiederhole 10 mal“ und „warte 1 Sekunden“ brauchen nur eine Zahl.');
+pick('control', 'Im Skript nach der Flagge soll das Programm warten, bis die Leertaste gedrückt wird, und erst dann weitermachen. Welcher Block passt?',
+  [K('waitUntil', K('keyDown', 'Leertaste'))], [K('wait', 1), K('if', K('keyDown', 'Leertaste')), K('forever')],
+  '„warte bis <Taste gedrückt?>“ pausiert, bis die Bedingung wahr ist. „falls“ prüft nur einmal und wartet nicht.',
+  [K('flag'), K('say', 'Drücke die Leertaste!')]);
+cmp('control', 'Die Figur soll „Gewonnen“ sagen, wenn Punkte GENAU 10 sind (Punkte können auch größer werden). Welche Skripte schaffen das?',
+  [[K('flag'), K('if', K('eq', P, 10), [K('say', 'Gewonnen')])],
+   [K('flag'), K('if', K('gt', P, 9), [K('say', 'Gewonnen')])],
+   [K('flag'), K('if', K('not', K('lt', P, 10)), [K('say', 'Gewonnen')])]], [0],
+  'Nur A sagt „Gewonnen“ bei genau 10. B und C gelten auch für 11, 12 …');
 
 /* ---- Fühlen ---- */
-pick('sensing', 'Du willst prüfen, ob die Figur den Mauszeiger berührt. Welcher Block liefert die Antwort „wahr/falsch“?',
-  [K('touching', 'Mauszeiger')], [K('mouseDown'), K('distance', 'Mauszeiger'), K('keyDown', 'Leertaste')],
-  '„wird Mauszeiger berührt?“ ist ein sechseckiger Block, den man in „falls“ oder „warte bis“ einsetzt.');
-pick('sensing', 'Welcher Block stellt dem Spieler eine Frage und wartet auf die Eingabe?',
-  [K('ask', 'Wie heißt du?')], [K('answer'), K('say', 'Hallo!'), K('wait', 1)],
-  '„frage … und warte“ zeigt ein Eingabefeld. Die Eingabe steht danach im Block „Antwort“.');
-pick('sensing', 'Welcher Block liefert, was der Spieler zuletzt eingetippt hat?',
-  [K('answer')], [K('ask', 'Wie heißt du?'), K('mouseX'), K('timer')],
-  '„Antwort“ ist ein Wert-Block. Er enthält die letzte Eingabe auf „frage … und warte“.');
-pick('sensing', 'Welche Blöcke liefern wahr oder falsch (sechseckige Form)?',
-  [K('touching', 'Mauszeiger'), K('keyDown', 'Leertaste'), K('mouseDown')], [K('answer'), K('timer'), K('mouseX')],
-  'Sechseckige Blöcke sind Bedingungen. Runde Blöcke liefern Zahlen oder Text.');
-pick('sensing', 'Welcher Block zeigt dir, wie viele Sekunden seit dem letzten Zurücksetzen vergangen sind?',
-  [K('timer')], [K('resetTimer'), K('wait', 1), K('answer')],
-  '„Stoppuhr“ liefert die Zeit. „setze Stoppuhr zurück“ stellt sie wieder auf 0.');
-pick('sensing', 'Wie fragst du ab, ob die Leertaste gerade gedrückt gehalten wird?',
-  [K('keyDown', 'Leertaste')], [K('keyPressed', 'Leertaste'), K('mouseDown'), K('touching', 'Mauszeiger')],
-  '„Taste … gedrückt?“ (Fühlen) ist eine Abfrage innerhalb eines Skripts. „Wenn Taste … gedrückt“ (Ereignisse) startet dagegen ein Skript.');
-pick('sensing', 'Welcher Block liefert die waagerechte Position des Mauszeigers?',
-  [K('mouseX')], [K('xpos'), K('mouseY'), K('distance', 'Mauszeiger')],
-  '„Maus x-Position“ gehört zu Fühlen. „x-Position“ ohne „Maus“ ist die Position der Figur.');
+pick('sensing', 'Die Figur soll verschwinden, sobald sie den Bühnenrand berührt. Welcher Block gehört in die Lücke?',
+  [K('touching', 'Rand')], [K('touching', 'Mauszeiger'), K('mouseDown'), K('keyDown', 'Leertaste')],
+  '„wird Rand berührt?“ – achte auf die Einstellung im Dropdown (Mauszeiger oder Rand).',
+  [K('flag'), K('forever', [K('if', null, [K('hide')])])]);
+num('sensing', 'Der Mauszeiger steht bei x = 30. Wie groß ist die x-Position der Figur am Ende?',
+  [K('flag'), K('gotoxy', K('mouseX'), 0), K('changeX', 20)], 50,
+  '„Maus x-Position“ liefert 30. Die Figur geht zu x = 30 und dann noch 20 weiter: 50.');
+find('sensing', 'Die Figur soll den eingetippten Namen sagen, sagt aber eine Zahl. Klicke den fehlerhaften Block an.',
+  [K('flag'), K('ask', 'Wie heißt du?'), K('say', X(K('timer')))],
+  'Die Eingabe steckt im Block „Antwort“. „Stoppuhr“ liefert eine Zeit in Sekunden.');
+pick('sensing', 'Welche Blöcke passen in die sechseckige Lücke von „falls … dann“?',
+  [K('touching', 'Rand'), K('keyDown', 'Leertaste'), K('mouseDown'), K('gt', P, 3)], [K('answer'), K('timer'), K('mouseY')],
+  'In sechseckige Lücken passen nur sechseckige Bedingungen. Runde Wert-Blöcke passen dort nicht.');
+pick('sensing', 'Du willst messen, wie lange ein Spiel dauert. Mit welchem Block startest du die Zeitmessung bei 0?',
+  [K('resetTimer')], [K('timer'), K('wait', 0), K('setVar', 'Punkte', 0)],
+  '„setze Stoppuhr zurück“ stellt die Stoppuhr auf 0. Den aktuellen Stand liefert dann der Block „Stoppuhr“.');
+cmp('sensing', 'Die Figur soll dem Mauszeiger dauerhaft langsam folgen. Welche Skripte schaffen das?',
+  [[K('flag'), K('forever', [K('pointTo', 'Mauszeiger'), K('move', 3)])],
+   [K('flag'), K('pointTo', 'Mauszeiger'), K('forever', [K('move', 3)])],
+   [K('flag'), K('forever', [K('gotoxy', K('mouseX'), K('mouseY'))])]], [0],
+  'A dreht sich in jedem Durchlauf zur Maus und geht ein Stück. B dreht nur einmal. C springt sofort auf die Maus – das ist kein langsames Folgen.');
 
 /* ---- Operatoren ---- */
-pick('operators', 'Du willst wie mit einem Würfel eine Zahl von 1 bis 6 auswürfeln. Welcher Block passt?',
-  [K('random', 1, 6)], [K('random', 1, 60), K('add', 1, 6), K('mul', 1, 6)],
-  '„Zufallszahl von 1 bis 6“ liefert bei jedem Aufruf eine andere Zahl aus diesem Bereich.');
-pick('operators', 'Eine Bedingung soll nur wahr sein, wenn BEIDE Teile wahr sind. Welcher Block passt?',
-  [K('and')], [K('or'), K('not'), K('gt', '', 50)],
-  '„und“ ist nur wahr, wenn beide Seiten wahr sind. „oder“ reicht schon eine.');
-pick('operators', 'Welcher Block ist wahr, wenn eine Zahl größer als 50 ist?',
-  [K('gt', '', 50)], [K('lt', '', 50), K('eq', '', 50), K('and')],
-  '„>“ prüft „größer als“, „<“ prüft „kleiner als“, „=“ prüft Gleichheit.');
-pick('operators', 'Welcher Block rechnet 7 mal 8?',
-  [K('mul', 7, 8)], [K('add', 7, 8), K('sub', 7, 8), K('div', 7, 8)],
-  'In Scratch ist das Malzeichen ein Stern *, das Geteiltzeichen ein Schrägstrich /.');
-pick('operators', 'Welcher Block dreht „wahr“ in „falsch“ um (und umgekehrt)?',
-  [K('not')], [K('and'), K('or'), K('eq', '', 50)],
-  '„nicht“ kehrt eine Bedingung um.');
+num('operators', 'Was sagt die Figur?',
+  [K('flag'), K('say', K('add', 3, K('mul', 4, 5)))], 23,
+  'Der innere Block rechnet zuerst: 4 · 5 = 20, dann 3 + 20 = 23.');
+num('operators', 'Was sagt die Figur?',
+  [K('flag'), K('say', K('sub', K('div', 20, 4), 2))], 3,
+  '20 / 4 = 5, dann 5 − 2 = 3.');
+num('operators', 'Was ist die größte Zahl, die die Figur sagen kann?',
+  [K('flag'), K('say', K('add', K('random', 2, 6), 1))], 7,
+  'Die Zufallszahl liegt zwischen 2 und 6, dazu kommt 1. Maximum: 6 + 1 = 7.');
+pred('operators', 'Punkte sind 7, Leben sind 0. Was sagt die Figur?',
+  [K('flag'), K('setVar', 'Punkte', 7), K('setVar', 'Leben', 0), K('ifElse', K('and', K('gt', P, 5), K('gt', LB, 0)), [K('say', 'Weiter')], [K('say', 'Game Over')])],
+  ['Game Over'], ['Weiter', 'Beides nacheinander', 'Nichts'],
+  '„und“ braucht beide Bedingungen. Punkte > 5 stimmt, aber Leben > 0 nicht – also läuft der „sonst“-Teil.');
+pick('operators', 'Punkte sind 7. Welche Bedingungen sind dann WAHR?',
+  [K('gt', P, 5), K('eq', P, 7), K('not', K('eq', P, 5))], [K('lt', P, 7)],
+  '7 > 5 ist wahr, 7 = 7 ist wahr und „nicht (7 = 5)“ ist ebenfalls wahr. 7 < 7 ist falsch.',
+  [K('flag'), K('setVar', 'Punkte', 7)]);
+pick('operators', 'Die Figur soll bei jedem Start auf eine zufällige x-Position zwischen −200 und 200 gesetzt werden. Welcher Block passt?',
+  [K('setX', K('random', -200, 200))], [K('setX', K('random', 0, 200)), K('changeX', K('random', -200, 200)), K('setX', -200)],
+  '„setze x auf Zufallszahl von −200 bis 200“ ist absolut. „ändere x um …“ verschiebt nur relativ zur alten Position.');
+pick('operators', 'Welche Rechnungen ergeben 12?',
+  [K('add', 5, 7), K('mul', 3, 4), K('sub', 20, 8)], [K('div', 36, 4), K('add', 6, 7)],
+  '5 + 7 = 12, 3 · 4 = 12, 20 − 8 = 12. Dagegen ist 36 / 4 = 9 und 6 + 7 = 13.');
+cmp('operators', 'Die Figur soll „Treffer“ sagen, wenn Punkte größer als 10 UND kleiner als 20 sind. Welche Skripte schaffen das?',
+  [[K('flag'), K('if', K('and', K('gt', P, 10), K('lt', P, 20)), [K('say', 'Treffer')])],
+   [K('flag'), K('if', K('or', K('gt', P, 10), K('lt', P, 20)), [K('say', 'Treffer')])],
+   [K('flag'), K('if', K('and', K('lt', P, 10), K('gt', P, 20)), [K('say', 'Treffer')])],
+   [K('flag'), K('if', K('not', K('or', K('lt', P, 11), K('gt', P, 19))), [K('say', 'Treffer')])]], [0, 3],
+  'A ist richtig (11–19). B ist fast immer wahr („oder“). C ist nie wahr. D bedeutet „nicht (kleiner als 11 oder größer als 19)“, also ebenfalls 11–19.');
+find('operators', 'Die Figur soll „Wenig Punkte“ sagen, wenn Punkte KLEINER als 5 sind. Klicke den fehlerhaften Block an.',
+  [K('flag'), K('if', X(K('gt', P, 5)), [K('say', 'Wenig Punkte')])],
+  'Hier steht „größer als“ (>). Gebraucht wird „kleiner als“ (<).');
 
 /* ---- Variablen ---- */
-pick('variables', 'Der Punktestand soll am Spielanfang auf 0 gesetzt werden. Welcher Block passt?',
-  [K('setVar', 'Punkte', 0)], [K('changeVar', 'Punkte', 1), K('showVar', 'Punkte'), K('hideVar', 'Punkte')],
-  '„setze … auf“ überschreibt den Wert. So startet man ein Spiel immer mit einem bekannten Wert.');
-pick('variables', 'Der Spieler bekommt EINEN Punkt dazu. Welcher Block passt?',
-  [K('changeVar', 'Punkte', 1)], [K('setVar', 'Punkte', 1), K('setVar', 'Punkte', 0), K('showVar', 'Punkte')],
-  '„ändere Punkte um 1“ rechnet +1 auf den alten Wert. „setze Punkte auf 1“ würde den Stand nur auf 1 zurücksetzen.');
-pick('variables', 'Der Punktestand soll groß auf der Bühne angezeigt werden. Welcher Block passt?',
-  [K('showVar', 'Punkte')], [K('hideVar', 'Punkte'), K('setVar', 'Punkte', 0), K('say', 'Punkte')],
-  '„zeige Variable“ blendet die Anzeige ein, „verstecke Variable“ blendet sie wieder aus.');
-pick('variables', 'Welcher Block ist die Variable selbst – also der Wert, den du zum Beispiel in „sage …“ hineinziehen kannst?',
-  [K('varPunkte')], [K('answer'), K('size'), K('changeVar', 'Punkte', 1)],
-  'Der runde orangefarbene Block mit dem Namen der Variablen liefert ihren aktuellen Wert.');
-pick('variables', 'Der Spieler verliert ein Leben. Welcher Block passt?',
-  [K('changeVar', 'Leben', -1)], [K('setVar', 'Leben', 1), K('changeVar', 'Punkte', -1), K('changeVar', 'Leben', 1)],
-  'Mit einer negativen Zahl zieht „ändere … um“ etwas ab. Achte auch auf die richtige Variable im Dropdown.');
-pick('variables', 'Die Lebensanzeige soll von der Bühne verschwinden. Welcher Block passt?',
-  [K('hideVar', 'Leben')], [K('showVar', 'Leben'), K('hideVar', 'Punkte'), K('setVar', 'Leben', 0)],
-  '„verstecke Variable Leben“ – die Variable behält ihren Wert, man sieht sie nur nicht mehr.');
+num('variables', 'Welchen Wert hat Punkte am Ende?',
+  [K('flag'), K('setVar', 'Punkte', 10), K('changeVar', 'Punkte', 5), K('setVar', 'Punkte', 2), K('changeVar', 'Punkte', 3)], 5,
+  '„setze auf 2“ überschreibt alles davor. Danach + 3 ergibt 5.');
+num('variables', 'Wie viele Punkte hat der Spieler am Ende?',
+  [K('flag'), K('setVar', 'Punkte', 3), K('setVar', 'Leben', 3), K('repeat', 2, [K('changeVar', 'Punkte', 5), K('changeVar', 'Leben', -1)])], 13,
+  'Punkte: 3 + 5 + 5 = 13. Die Leben (3 − 2 = 1) sind eine andere Variable.');
+pick('variables', 'Bei jedem Start der Flagge soll Leben wieder bei 3 beginnen. Welcher Block gehört an den Anfang?',
+  [K('setVar', 'Leben', 3)], [K('changeVar', 'Leben', 3), K('showVar', 'Leben'), K('setVar', 'Punkte', 3)],
+  '„ändere Leben um 3“ würde bei jedem Start 3 dazuaddieren. „setze Leben auf 3“ legt den Startwert immer gleich fest.',
+  [K('flag'), K('forever', [K('move', 5)])]);
+find('variables', 'Jeder Klick auf die Figur soll einen Punkt bringen – der Punktestand springt aber immer auf 1 zurück. Klicke den fehlerhaften Block an.',
+  [K('spriteClicked'), X(K('setVar', 'Punkte', 1))],
+  '„setze Punkte auf 1“ überschreibt den Wert jedes Mal. Richtig ist „ändere Punkte um 1“.');
+pred('variables', 'Was passiert, nachdem die Figur zum dritten Mal den Rand berührt hat?',
+  [K('flag'), K('setVar', 'Leben', 3), K('forever', [K('if', K('touching', 'Rand'), [K('changeVar', 'Leben', -1), K('wait', 1)]), K('if', K('eq', LB, 0), [K('stop', 'alles')])])],
+  ['Das Programm stoppt'], ['Die Figur sagt „Game Over“', 'Leben springt wieder auf 3', 'Nichts'],
+  'Nach drei Berührungen ist Leben = 0, und die zweite Abfrage löst „stoppe alles“ aus. Gesagt wird nichts.');
+pick('variables', 'Welche Blöcke verändern den Wert der Variablen Punkte?',
+  [K('setVar', 'Punkte', 0), K('changeVar', 'Punkte', -1)], [K('showVar', 'Punkte'), K('hideVar', 'Punkte'), K('changeVar', 'Leben', 1)],
+  'Nur „setze Punkte auf …“ und „ändere Punkte um …“ verändern den Wert. Zeigen/Verstecken ändert nur die Anzeige.');
+cmp('variables', 'Nach dem Start soll Punkte bei 0 beginnen und dann dauerhaft alle 2 Sekunden um 1 steigen. Welche Skripte schaffen das?',
+  [[K('flag'), K('setVar', 'Punkte', 0), K('forever', [K('wait', 2), K('changeVar', 'Punkte', 1)])],
+   [K('flag'), K('forever', [K('setVar', 'Punkte', 0), K('wait', 2), K('changeVar', 'Punkte', 1)])],
+   [K('flag'), K('setVar', 'Punkte', 0), K('repeat', 10, [K('wait', 2), K('changeVar', 'Punkte', 1)])],
+   [K('flag'), K('setVar', 'Punkte', 0), K('forever', [K('changeVar', 'Punkte', 1)])]], [0],
+  'B setzt Punkte in jedem Durchlauf wieder auf 0. C hört nach 10 Durchläufen auf. D zählt ohne Pause extrem schnell.');
 
-/* ---- In welche Kategorie gehört der Block? ---- */
-[['move', 'Bewegung bewegt die Figur über die Bühne.'], ['say', 'Alles, was die Figur anzeigt oder sagt, steckt in Aussehen.'],
- ['flag', 'Ereignisse starten Skripte (gelbe Hut-Blöcke).'], ['repeat', 'Schleifen und Bedingungen sind Steuerung.'],
- ['touching', 'Fühlen fragt die Umgebung ab.'], ['add', 'Rechnen, Vergleichen und Texte verbinden sind Operatoren.'],
- ['setVar', 'Alles rund um Variablen ist dunkelorange.'], ['keyDown', 'Abfragen von Tasten und Maus gehören zu Fühlen.'],
- ['broadcast', 'Nachrichten senden und empfangen sind Ereignisse.'], ['wait', 'Warten gehört zu Steuerung.'],
- ['random', 'Zufallszahlen liefert Operatoren.'], ['show', 'Sichtbarkeit und Größe sind Aussehen.'],
- ['ifElse', 'Bedingungen wie „falls … sonst“ sind Steuerung.'], ['gotoxy', 'Orte auf der Bühne sind Bewegung.'],
- ['ask', 'Fragen an den Spieler gehören zu Fühlen.']]
-  .forEach(([id, ex]) => bcat(id, ex));
-
-/* ---- Skripte vergleichen ---- */
-cmp('events', 'Die Figur soll 10 Schritte gehen, wenn die Leertaste gedrückt wird. Welches Skript tut das?',
-  [K('keyPressed', 'Leertaste'), K('move', 10)], [K('flag'), K('move', 10)], 'A',
-  'In A startet die Leertaste das Skript. In B startet die Flagge, die Taste spielt keine Rolle.');
-cmp('control', 'Die Figur soll sich ständig drehen. Welches Skript tut das?',
-  [K('flag'), K('forever', [K('turnR', 15)])], [K('flag'), K('turnR', 15)], 'A',
-  'B dreht die Figur nur ein einziges Mal um 15 Grad. In A sorgt „wiederhole fortlaufend“ für die ständige Drehung.');
-cmp('events', 'Die Figur soll „Aua!“ sagen, wenn man auf sie klickt. Welches Skript tut das?',
-  [K('spriteClicked'), K('say', 'Aua!')], [K('flag'), K('say', 'Aua!')], 'A',
-  'B sagt „Aua!“ schon beim Start der Flagge – ganz ohne Klick auf die Figur.');
-cmp('looks', 'Nach dem Start soll die Figur 2 Sekunden lang „Hallo!“ sagen und danach keine Sprechblase mehr zeigen. Welche Skripte schaffen das?',
-  [K('flag'), K('sayFor', 'Hallo!', 2)], [K('flag'), K('say', 'Hallo!'), K('wait', 2), K('say', '')], 'both',
-  'A macht es mit einem Block. In B wird „Hallo!“ gesagt, 2 Sekunden gewartet und dann ein leerer Text gesagt – das blendet die Blase ebenfalls aus.');
-cmp('motion', 'Die Figur soll insgesamt 30 Schritte nach vorne gehen. Welche Skripte schaffen das?',
-  [K('flag'), K('move', 10), K('move', 10), K('move', 10)], [K('flag'), K('repeat', 3, [K('move', 10)])], 'both',
-  'Dreimal 10 Schritte ergibt 30 – egal ob man den Block dreimal setzt oder eine Schleife benutzt.');
-cmp('motion', 'Die Figur soll in einer Sekunde sanft zur Stelle x: 100, y: 0 gleiten. Welches Skript tut das?',
-  [K('flag'), K('glide', 1, 100, 0)], [K('flag'), K('gotoxy', 100, 0)], 'A',
-  'B springt sofort dorthin. Nur „gleite in … Sek. zu x: y:“ zeigt die Bewegung.');
-cmp('motion', 'Die Figur soll bei Leertaste sichtbar hochspringen und wieder landen. Welches Skript tut das?',
-  [K('keyPressed', 'Leertaste'), K('changeY', 50), K('wait', 0.2), K('changeY', -50)],
-  [K('keyPressed', 'Leertaste'), K('changeY', 50), K('changeY', -50)], 'A',
-  'In B geht die Figur hoch und sofort wieder runter – das passiert so schnell, dass man den Sprung nicht sieht. Erst „warte“ macht ihn sichtbar.');
-cmp('control', 'Die Figur soll „Gewonnen“ sagen, wenn Punkte größer als 10 sind, sonst „Weiter üben“. Welche Skripte schaffen das?',
-  [K('flag'), K('ifElse', K('gt', K('varPunkte'), 10), [K('say', 'Gewonnen')], [K('say', 'Weiter üben')])],
-  [K('flag'), K('if', K('gt', K('varPunkte'), 10), [K('say', 'Gewonnen')]), K('if', K('not', K('gt', K('varPunkte'), 10)), [K('say', 'Weiter üben')])], 'both',
-  'A nutzt „falls … sonst“. B prüft zwei getrennte Bedingungen, die sich gegenseitig ausschließen – das Ergebnis ist dasselbe.');
-cmp('control', 'Die Figur soll laufen, bis sie den Rand berührt. Welche Skripte schaffen das?',
-  [K('flag'), K('repeatUntil', K('touching', 'Rand'), [K('move', 5)])],
-  [K('flag'), K('forever', [K('move', 5), K('if', K('touching', 'Rand'), [K('stop', 'dieses Skript')])])], 'both',
-  'A hört durch die Schleifenbedingung auf. B läuft endlos, beendet sich aber selbst mit „stoppe dieses Skript“, sobald der Rand berührt wird.');
-cmp('events', 'Die Figur soll nach rechts laufen, wenn die rechte Pfeiltaste gedrückt wird. Welche Skripte schaffen das?',
-  [K('keyPressed', 'Pfeil nach links'), K('move', 10)], [K('keyPressed', 'Pfeil nach rechts'), K('turnR', 10)], 'none',
-  'In A ist die falsche Taste eingestellt (links statt rechts). In B stimmt die Taste, aber die Figur dreht sich nur, statt zu laufen.');
-cmp('variables', 'Die Variable Punkte soll am Ende den Wert 5 haben. Welche Skripte schaffen das?',
-  [K('flag'), K('setVar', 'Punkte', 0), K('repeat', 5, [K('changeVar', 'Punkte', 1)])], [K('flag'), K('setVar', 'Punkte', 5)], 'both',
-  'A zählt von 0 fünfmal um 1 hoch, B setzt den Wert direkt auf 5.');
-cmp('control', 'Die Figur soll erst nach 3 Sekunden „Los!“ sagen. Welches Skript tut das?',
-  [K('flag'), K('wait', 3), K('say', 'Los!')], [K('flag'), K('say', 'Los!'), K('wait', 3)], 'A',
-  'Die Reihenfolge entscheidet: In B kommt „Los!“ sofort und erst danach die Pause.');
-cmp('sensing', 'Die Figur soll nach dem Namen fragen und dann die Antwort sagen. Welches Skript tut das?',
-  [K('flag'), K('ask', 'Wie heißt du?'), K('say', K('answer'))],
-  [K('flag'), K('say', K('answer')), K('ask', 'Wie heißt du?')], 'A',
-  'Die Antwort gibt es erst nach der Frage. In B wird „Antwort“ gesagt, bevor jemand etwas eingetippt hat.');
-cmp('control', 'Die Figur soll verschwinden, sobald man mit dem Mauszeiger über sie fährt – egal, wann das passiert. Welches Skript tut das?',
-  [K('flag'), K('forever', [K('if', K('touching', 'Mauszeiger'), [K('hide')])])], [K('flag'), K('if', K('touching', 'Mauszeiger'), [K('hide')])], 'A',
-  'B prüft die Bedingung nur ein einziges Mal direkt nach dem Start. Erst die Endlosschleife in A prüft ständig.');
-
-/* ---- Was passiert? ---- */
-pred('motion', 'Die Figur schaut nach rechts (Richtung 90). Welche x-Position hat sie am Ende?',
-  [K('flag'), K('gotoxy', 0, 0), K('move', 10), K('changeX', 20)], ['30'], ['10', '20', '0'],
-  'Start bei x = 0, dann 10 Schritte nach rechts (x = 10), dann „ändere x um 20“ (x = 30).');
-pred('variables', 'Welchen Wert hat Punkte am Ende?',
-  [K('flag'), K('setVar', 'Punkte', 5), K('changeVar', 'Punkte', 3), K('changeVar', 'Punkte', -2)], ['6'], ['3', '5', '8'],
-  '5 + 3 = 8, dann 8 − 2 = 6.');
-pred('variables', 'Welchen Wert hat Punkte am Ende?',
-  [K('flag'), K('setVar', 'Punkte', 0), K('repeat', 4, [K('changeVar', 'Punkte', 2)])], ['8'], ['4', '6', '2'],
-  'Die Schleife läuft 4 Mal und addiert jedes Mal 2: 0 → 2 → 4 → 6 → 8.');
-pred('control', 'Die Variable Punkte hat den Wert 8. Was sagt die Figur?',
-  [K('flag'), K('setVar', 'Punkte', 8), K('ifElse', K('gt', K('varPunkte'), 10), [K('say', 'Gewonnen')], [K('say', 'Weiter')])],
-  ['Weiter'], ['Gewonnen', 'Beides nacheinander', 'Nichts'],
-  '8 ist nicht größer als 10, also läuft der „sonst“-Teil.');
-pred('operators', 'Was sagt die Figur?',
-  [K('flag'), K('say', K('add', 3, K('mul', 2, 4)))], ['11'], ['20', '14', '8'],
-  'Der innere Block rechnet zuerst: 2 * 4 = 8. Dann 3 + 8 = 11.');
-pred('motion', 'Die Figur schaut nach rechts. In welche Richtung schaut sie am Ende (in Grad)?',
-  [K('flag'), K('dir', 90), K('turnR', 90)], ['180'], ['0', '90', '360'],
-  '90 Grad (rechts) plus 90 Grad im Uhrzeigersinn ergibt 180 Grad – die Figur schaut nach unten.');
-pred('motion', 'Die Figur schaut nach rechts. Wo steht sie am Ende (x-Position)?',
-  [K('flag'), K('gotoxy', -100, 0), K('dir', 90), K('repeat', 5, [K('move', 20)])], ['0'], ['-100', '100', '-80'],
-  'Start bei −100. Fünf Mal 20 Schritte sind 100 Schritte: −100 + 100 = 0.');
-
-/* ---- Bauen ---- */
+/* ---- Bauen: 3 bis 10 Blöcke ---- */
 build('events', 'Wenn die grüne Flagge angeklickt wird, soll die Figur 10 Schritte gehen und dann „Hallo!“ sagen.',
   [K('flag'), K('move', 10), K('say', 'Hallo!'), K('turnR', 15), K('keyPressed', 'Leertaste')],
   [K('flag'), K('move', 10), K('say', 'Hallo!')],
   'Ein Skript beginnt mit einem Hut-Block. Darunter folgen die Blöcke in der Reihenfolge, in der sie ausgeführt werden.');
-build('events', 'Wenn die Leertaste gedrückt wird, soll die Figur 20 Schritte gehen. (Zahlen und Dropdowns kannst du anpassen!)',
-  [K('keyPressed', 'Pfeil nach rechts'), K('flag'), K('move', 10), K('turnL', 15)],
-  [K('keyPressed', 'Leertaste'), K('move', 20)],
-  'Stelle im Hut-Block die Taste „Leertaste“ ein und ändere im „gehe“-Block die Zahl auf 20.');
-build('control', 'Nach Klick auf die Flagge soll die Figur fortlaufend 5 Schritte gehen und am Rand abprallen.',
+build('motion', 'Die Figur soll bei der Leertaste springen: 50 nach oben, kurz (0,3 Sekunden) warten und wieder 50 nach unten. (Zahlen und Dropdowns kannst du anpassen!)',
+  [K('keyPressed', 'Pfeil nach rechts'), K('changeY', 10), K('wait', 1), K('changeX', 10), K('flag'), K('setY', 0)],
+  [K('keyPressed', 'Leertaste'), K('changeY', 50), K('wait', 0.3), K('changeY', -50)],
+  'Ohne „warte“ sieht man den Sprung nicht. Der zweite „ändere y“-Block muss −50 haben, damit die Figur zurückkehrt.');
+build('control', 'Nach dem Start soll die Figur dauerhaft 5 Schritte laufen und am Rand abprallen.',
   [K('flag'), K('forever'), K('repeat', 10), K('move', 5), K('bounce'), K('turnR', 15)],
   [K('flag'), K('forever', [K('move', 5), K('bounce')])],
-  'Beide Bewegungsblöcke gehören in die Endlosschleife, sonst würde nur einmal gelaufen.');
-build('control', 'Nach Klick auf die Flagge soll sich die Figur 36 Mal um jeweils 10 Grad nach rechts drehen.',
-  [K('flag'), K('repeat', 10), K('forever'), K('turnR', 15), K('turnL', 15)],
-  [K('flag'), K('repeat', 36, [K('turnR', 10)])],
-  '36 × 10 Grad = 360 Grad: einmal komplett im Kreis. Ändere die Zahlen in „wiederhole“ und „drehe“.');
+  'Beide Bewegungsblöcke gehören in die Endlosschleife (Gameloop), sonst würde nur einmal gelaufen.');
+build('control', 'Steuerung wie im Spiel: Nach dem Start soll die Figur dauerhaft auf die Pfeiltasten reagieren. Rechts = 10 nach rechts, links = 10 nach links (erst rechts, dann links abfragen).',
+  [K('flag'), K('forever'), K('if'), K('keyDown', 'Leertaste'), K('changeX', 10), K('repeat', 10), K('wait', 1), K('keyPressed', 'Pfeil nach rechts')],
+  [K('flag'), K('forever', [K('if', K('keyDown', 'Pfeil nach rechts'), [K('changeX', 10)]), K('if', K('keyDown', 'Pfeil nach links'), [K('changeX', -10)])])],
+  'Die Tastenabfragen müssen in die Endlosschleife, sonst werden sie nur einmal geprüft. Für links brauchst du −10 und die richtige Taste im Dropdown.');
+build('control', 'Wie in einem Flugspiel: Solange die Leertaste gedrückt ist, steigt die Figur (y + 5), sonst fällt sie (y − 5). Das soll dauerhaft ab dem Start gelten.',
+  [K('flag'), K('forever'), K('ifElse'), K('keyDown', 'Pfeil nach oben'), K('changeY', 10), K('if'), K('wait', 1)],
+  [K('flag'), K('forever', [K('ifElse', K('keyDown', 'Leertaste'), [K('changeY', 5)], [K('changeY', -5)])])],
+  '„falls … sonst“ innerhalb der Endlosschleife. Oben „ändere y um 5“, unten „ändere y um −5“, Bedingung: Leertaste.');
+build('sensing', 'Die Figur soll dauerhaft zum Mauszeiger springen. (Ziehe die Maus-Blöcke in die Felder von „gehe zu x: y:“.)',
+  [K('flag'), K('forever'), K('gotoxy', 0, 0), K('mouseX'), K('mouseY'), K('xpos'), K('pointTo', 'Mauszeiger')],
+  [K('flag'), K('forever', [K('gotoxy', K('mouseX'), K('mouseY'))])],
+  'x bekommt die x-Position der Maus, y die y-Position. Die Endlosschleife sorgt dafür, dass die Figur der Maus ständig folgt.');
+build('motion', 'Die Figur soll ein Quadrat laufen: 4 Mal 50 Schritte gehen und jeweils um 90 Grad nach rechts drehen.',
+  [K('flag'), K('repeat', 10), K('forever'), K('move', 10), K('turnR', 15), K('turnL', 15)],
+  [K('flag'), K('repeat', 4, [K('move', 50), K('turnR', 90)])],
+  '4 Seiten, 4 Ecken: Die Schleife läuft 4 Mal, 4 · 90 Grad = 360 Grad.');
 build('variables', 'Wenn man auf die Figur klickt, soll der Punktestand um 1 steigen und die Figur den neuen Punktestand sagen. (Ziehe den Variablen-Block in das „sage“-Feld.)',
   [K('spriteClicked'), K('changeVar', 'Punkte', 1), K('setVar', 'Punkte', 0), K('say', 'Hallo!'), K('varPunkte'), K('flag')],
   [K('spriteClicked'), K('changeVar', 'Punkte', 1), K('say', K('varPunkte'))],
   'Runde Wert-Blöcke wie „Punkte“ kannst du in die Felder anderer Blöcke ziehen.');
-build('control', 'Nach Klick auf die Flagge soll die Figur ständig prüfen: Wenn sie den Mauszeiger berührt, sagt sie „Hi!“.',
-  [K('flag'), K('forever'), K('if'), K('touching', 'Mauszeiger'), K('say', 'Hi!'), K('wait', 1)],
-  [K('flag'), K('forever', [K('if', K('touching', 'Mauszeiger'), [K('say', 'Hi!')])])],
-  'Sechseckige Bedingungen passen in die sechseckige Lücke von „falls“. Die Schleife ganz außen sorgt für das ständige Prüfen.');
-build('operators', 'Nach Klick auf die Flagge soll die Figur das Ergebnis von 3 + 4 sagen. (Ziehe den Rechen-Block in das „sage“-Feld und tippe die Zahlen ein.)',
-  [K('flag'), K('say', 'Hallo!'), K('add'), K('mul'), K('sub')],
-  [K('flag'), K('say', K('add', '3', '4'))],
-  'Der Plus-Block liefert 7. Er wird in das Textfeld von „sage“ gezogen.');
-build('sensing', 'Nach Klick auf die Flagge soll die Figur „Wie heißt du?“ fragen und dann die Antwort sagen.',
-  [K('flag'), K('ask', 'Wie heißt du?'), K('say', 'Hallo!'), K('answer'), K('wait', 1)],
-  [K('flag'), K('ask', 'Wie heißt du?'), K('say', K('answer'))],
-  'Erst fragen, dann den Block „Antwort“ in „sage“ ziehen.');
-build('operators', 'Nach Klick auf die Flagge soll sich die Figur auf eine zufällige x-Position zwischen -100 und 100 setzen.',
-  [K('flag'), K('setX', 0), K('random'), K('gotoxy', 0, 0), K('changeX', 10)],
-  [K('flag'), K('setX', K('random', '-100', '100'))],
-  '„Zufallszahl von … bis …“ liefert den Wert für „setze x auf“. Passe die Grenzen im Zufalls-Block an.');
+build('variables', 'Spielstart: Punkte auf 0, Leben auf 3 setzen. Dann dauerhaft prüfen: Wenn die Figur den Rand berührt, verliert sie 1 Leben und wartet 1 Sekunde. (Achte auf die Dropdowns!)',
+  [K('flag'), K('setVar', 'Punkte', 1), K('forever'), K('if'), K('touching', 'Mauszeiger'), K('changeVar', 'Punkte', 1), K('wait', 2), K('repeat', 10)],
+  [K('flag'), K('setVar', 'Punkte', 0), K('setVar', 'Leben', 3), K('forever', [K('if', K('touching', 'Rand'), [K('changeVar', 'Leben', -1), K('wait', 1)])])],
+  'Zwei Mal „setze … auf“ (Punkte 0, Leben 3), dann die Endlosschleife mit der Abfrage „wird Rand berührt?“ und „ändere Leben um −1“.');
+build('variables', 'Countdown: Setze Punkte auf 10, warte dann 10 Mal 1 Sekunde und verringere dabei jedes Mal Punkte um 1. Danach soll die Figur „Los!“ sagen.',
+  [K('flag'), K('setVar', 'Punkte', 0), K('repeat', 5), K('wait', 2), K('changeVar', 'Punkte', 1), K('say', 'Hallo!'), K('forever')],
+  [K('flag'), K('setVar', 'Punkte', 10), K('repeat', 10, [K('wait', 1), K('changeVar', 'Punkte', -1)]), K('say', '*')],
+  'Startwert 10, zehn Durchläufe mit „warte 1“ und „ändere Punkte um −1“ und danach (außerhalb der Schleife) „sage Los!“.');
+build('operators', 'Spielende: Setze Punkte auf 0 und warte dann jeweils 1 Sekunde, erhöhe Punkte um 1 – und zwar so lange, bis Punkte größer als 9 sind. Danach soll die Figur „Geschafft!“ sagen. (Ziehe „Punkte“ in die linke Lücke von „>“.)',
+  [K('flag'), K('setVar', 'Punkte', 0), K('repeatUntil'), K('gt'), K('varPunkte'), K('wait', 1), K('changeVar', 'Punkte', 1), K('say', 'Hallo!'), K('forever')],
+  [K('flag'), K('setVar', 'Punkte', 0), K('repeatUntil', K('gt', K('varPunkte'), 9), [K('wait', 1), K('changeVar', 'Punkte', 1)]), K('say', '*')],
+  '„wiederhole bis <Punkte > 9>“ enthält „warte 1“ und „ändere Punkte um 1“. „sage“ steht unterhalb der Schleife.');
+build('sensing', 'Mini-Quiz: Die Figur fragt „Was ist 3 + 4?“. Wenn die Antwort 7 ist, sagt sie „Richtig!“, sonst „Falsch!“.',
+  [K('flag'), K('ask', 'Was ist 3 + 4?'), K('ifElse'), K('eq'), K('answer'), K('say', 'Hallo!'), K('if'), K('wait', 1)],
+  [K('flag'), K('ask', 'Was ist 3 + 4?'), K('ifElse', K('eq', K('answer'), 7), [K('say', '*')], [K('say', '*')])],
+  'Die Bedingung lautet „Antwort = 7“ (Zahl im Gleich-Block anpassen). Oben „Richtig!“, im „sonst“-Teil „Falsch!“.');
+build('operators', 'Würfel: Wenn man auf die Figur klickt, soll sie eine Zufallszahl von 1 bis 6 sagen. (Ziehe den Zufalls-Block in das „sage“-Feld.)',
+  [K('spriteClicked'), K('say', 'Hallo!'), K('random'), K('flag'), K('add')],
+  [K('spriteClicked'), K('say', K('random', 1, 6))],
+  'Der Zufalls-Block liefert den Wert; die Grenzen musst du auf 1 und 6 ändern.');
 build('events', 'Wenn die Nachricht „Nachricht1“ empfangen wird, soll die Figur 2 Sekunden lang verschwinden und danach wieder erscheinen.',
   [K('receive', 'Nachricht1'), K('hide'), K('wait', 1), K('show'), K('broadcast', 'Nachricht1')],
   [K('receive', 'Nachricht1'), K('hide'), K('wait', 2), K('show')],
   'verstecken → 2 Sekunden warten → zeigen. Das „warte“ muss auf 2 Sekunden stehen.');
-build('control', 'Nach Klick auf die Flagge soll die Figur in 5er-Schritten laufen, bis sie den Rand berührt. (Achte auf das Dropdown!)',
-  [K('flag'), K('repeatUntil'), K('forever'), K('touching', 'Mauszeiger'), K('move', 5), K('bounce')],
+build('control', 'Nach dem Start soll die Figur in 5er-Schritten laufen, bis sie den Rand berührt. (Achte auf das Dropdown!)',
+  [K('flag'), K('repeatUntil'), K('forever'), K('touching', 'Mauszeiger'), K('move', 10), K('bounce')],
   [K('flag'), K('repeatUntil', K('touching', 'Rand'), [K('move', 5)])],
   '„wiederhole bis“ bekommt die Bedingung „wird Rand berührt?“. Stelle im Dropdown „Rand“ ein.');
-build('variables', 'Nach Klick auf die Flagge sollen die Leben auf 3 gesetzt und als Anzeige auf der Bühne gezeigt werden. (Achte auf das Dropdown!)',
-  [K('flag'), K('setVar', 'Punkte', 0), K('showVar', 'Punkte'), K('hideVar', 'Punkte'), K('changeVar', 'Punkte', 1)],
-  [K('flag'), K('setVar', 'Leben', 3), K('showVar', 'Leben')],
-  'In beiden Blöcken muss die Variable „Leben“ eingestellt sein; „setze … auf 3“ legt den Startwert fest.');
 
 /* Welche Bausteine kommen in einer Aufgabe vor? (für die Auswahl nach Selbsteinschätzung) */
 function idsIn(x, out) {
   if (Array.isArray(x)) x.forEach(i => idsIn(i, out));
+  else if (x && x.blocks) idsIn(x.blocks, out);
   else if (isInst(x)) { out.add(x.id); x.v.forEach(v => idsIn(v, out)); x.m.forEach(m => idsIn(m, out)); }
   return out;
 }
@@ -767,10 +785,9 @@ function taskIds(t) {
   if (!t.ids) {
     const o = new Set();
     if (t.type === 'pick') idsIn(t.opts.filter(x => x.ok).map(x => x.b), o);
-    else if (t.type === 'cmp') idsIn([t.A, t.B], o);
-    else if (t.type === 'pred') idsIn(t.script, o);
+    else if (t.type === 'cmp') idsIn(t.scripts, o);
     else if (t.type === 'build') idsIn(t.sol, o);
-    else o.add(t.id);
+    else idsIn(t.sc, o);
     t.ids = o;
   }
   return t.ids;
@@ -796,7 +813,7 @@ let quiz = null;
 let bs = null; // Zustand der Bau-Aufgabe
 let sheetEl = null;
 
-const TYPE_LABEL = { pick: 'Block anklicken', cmp: 'Skripte vergleichen', pred: 'Was passiert?', build: 'Skript bauen', cat: 'Kategorie' };
+const TYPE_LABEL = { pick: 'Block auswählen', cmp: 'Skripte vergleichen', pred: 'Was passiert?', num: 'Zahl eingeben', find: 'Fehler finden', build: 'Skript bauen' };
 const PRAISE = ['Richtig!', 'Super!', 'Stark!', 'Genau!', 'Perfekt!', 'Klasse!'];
 
 function setMode(m) {
@@ -874,7 +891,7 @@ function startQuiz() {
   // Aufgabentypen abwechselnd mischen, damit nicht nur Anklick-Aufgaben kommen
   const q = {};
   shuffle(pool()).forEach(t => (q[t.type] = q[t.type] || []).push(t));
-  const order = ['pick', 'cmp', 'pick', 'build', 'pred', 'pick', 'cat', 'cmp', 'pick', 'pred', 'build', 'pick'];
+  const order = ['pick', 'build', 'num', 'cmp', 'find', 'pick', 'pred', 'build', 'num', 'find', 'cmp', 'pick'];
   const tasks = [];
   while (tasks.length < 15 && Object.values(q).some(a => a.length)) {
     for (const ty of order) { if (q[ty] && q[ty].length && tasks.length < 15) tasks.push(q[ty].shift()); }
@@ -908,7 +925,7 @@ function showTask() {
   const next = el('button', 'primary-btn hidden', quiz.i + 1 >= quiz.tasks.length ? 'Ergebnis ansehen' : 'Weiter ▶'); next.type = 'button';
   next.addEventListener('click', () => { quiz.i++; showTask(); });
   const ctx = { t, p, body, fb, actions, next };
-  ({ pick: viewPick, cmp: viewCmp, pred: viewPred, build: viewBuild, cat: viewCat })[t.type](ctx);
+  ({ pick: viewPick, cmp: viewCmp, pred: viewPred, num: viewNum, find: viewFind, build: viewBuild })[t.type](ctx);
   p.append(body, fb, actions);
   actions.append(next);
   app.append(p);
@@ -942,11 +959,30 @@ function report(ctx, ok, partial, extra) {
   layout(fb);
 }
 
-/* ---- Typ: Block anklicken ---- */
+/* ---- Gemeinsame Helfer ---- */
+function normSc(x) { return x.length && x[0] && x[0].blocks ? x : [{ blocks: x }]; }
+function scriptsView(x) {
+  const w = el('div', 'cmp');
+  normSc(x).forEach(s => {
+    const c = el('div', 'card');
+    if (s.label) c.append(el('h4', null, s.label.toUpperCase()));
+    c.append(scriptEl(s.blocks)); w.append(c);
+  });
+  return w;
+}
+function mkCheck(ctx, run) {
+  const b = el('button', 'primary-btn', 'Überprüfen'); b.type = 'button'; b.disabled = true;
+  b.addEventListener('click', () => { if (quiz.done || b.disabled) return; b.classList.add('hidden'); run(); });
+  ctx.actions.prepend(b);
+  return b;
+}
+
+/* ---- Typ: Block auswählen ---- */
 function viewPick(ctx) {
   const t = ctx.t;
   const multi = t.opts.filter(o => o.ok).length > 1;
-  question(ctx, t.q, multi ? 'Mehrere Blöcke sind richtig – wähle alle aus und klicke dann auf „Prüfen“.' : 'Klicke den passenden Block an.');
+  question(ctx, t.q, multi ? 'Mehrere Blöcke sind richtig: Klicke alle passenden an und dann auf „Überprüfen“.' : 'Klicke den passenden Block an und dann auf „Überprüfen“.');
+  if (t.sc) ctx.body.append(scriptsView(t.sc));
   const grid = el('div', 'opts');
   const items = shuffle(t.opts).map(o => {
     const b = el('button', 'opt'); b.type = 'button';
@@ -954,7 +990,7 @@ function viewPick(ctx) {
     return { o, b };
   });
   ctx.body.append(grid);
-  const finish = () => {
+  const check = mkCheck(ctx, () => {
     items.forEach(({ o, b }) => {
       b.disabled = true;
       const chosen = b.classList.contains('sel');
@@ -964,84 +1000,116 @@ function viewPick(ctx) {
       else if (chosen) b.classList.add('wrong');
     });
     const allRight = items.every(({ o, b }) => o.ok ? b.classList.contains('correct') : !b.classList.contains('wrong'));
-    report(ctx, allRight, multi ? 'Nicht ganz – grün gestrichelt sind die fehlenden richtigen Blöcke.' : 'Leider falsch.');
-  };
-  if (multi) {
-    const check = el('button', 'primary-btn', 'Prüfen'); check.type = 'button'; check.disabled = true;
-    items.forEach(({ b }) => b.addEventListener('click', () => { if (quiz.done) return; b.classList.toggle('sel'); check.disabled = !items.some(x => x.b.classList.contains('sel')); }));
-    check.addEventListener('click', () => { check.classList.add('hidden'); finish(); });
-    ctx.actions.prepend(check);
-  } else items.forEach(({ b }) => b.addEventListener('click', () => { if (quiz.done) return; b.classList.add('sel'); finish(); }));
+    report(ctx, allRight, 'Nicht ganz – grün sind die richtigen Blöcke' + (multi ? ', gestrichelt die, die du übersehen hast.' : '.'));
+  });
+  items.forEach(({ b }) => b.addEventListener('click', () => {
+    if (quiz.done) return;
+    if (multi) b.classList.toggle('sel');
+    else { items.forEach(x => x.b.classList.remove('sel')); b.classList.add('sel'); }
+    check.disabled = !items.some(x => x.b.classList.contains('sel'));
+  }));
 }
 
 /* ---- Typ: Skripte vergleichen ---- */
 function viewCmp(ctx) {
   const t = ctx.t;
-  question(ctx, t.q, 'Welche der beiden Skripte erreichen das Ziel?');
+  question(ctx, t.q, 'Klicke alle Skripte an, die das Ziel erreichen. Es können mehrere, eines oder auch keines richtig sein. Dann „Überprüfen“.');
   const wrap = el('div', 'cmp');
-  const cards = {};
-  [['A', t.A], ['B', t.B]].forEach(([k, s]) => {
-    const c = el('div', 'card'); c.append(el('h4', null, 'SKRIPT ' + k), scriptEl(s)); wrap.append(c); cards[k] = c;
+  const cards = t.scripts.map((s, i) => {
+    const c = el('div', 'card pickable');
+    c.append(el('h4', null, 'SKRIPT ' + 'ABCD'[i]), scriptEl(s));
+    c.addEventListener('click', () => { if (!quiz.done) c.classList.toggle('sel'); });
+    wrap.append(c); return c;
   });
   ctx.body.append(wrap);
-  const ch = el('div', 'txt-opts');
-  const choices = [['A', 'Nur A'], ['B', 'Nur B'], ['both', 'Beide'], ['none', 'Keines von beiden']];
-  const btns = choices.map(([k, name]) => {
-    const b = el('button', 'txt-opt', name); b.type = 'button'; ch.append(b);
-    b.addEventListener('click', () => {
-      if (quiz.done) return;
-      btns.forEach(x => x.b.disabled = true);
-      b.classList.add(k === t.ans ? 'correct' : 'wrong');
-      if (k !== t.ans) btns.find(x => x.k === t.ans).b.classList.add('missed');
-      const good = { A: ['A'], B: ['B'], both: ['A', 'B'], none: [] }[t.ans];
-      good.forEach(g => cards[g].classList.add('ok'));
-      report(ctx, k === t.ans, 'Leider falsch – richtig ist: ' + choices.find(c => c[0] === t.ans)[1] + '.');
+  const check = mkCheck(ctx, () => {
+    let ok = true;
+    cards.forEach((c, i) => {
+      const want = t.ans.includes(i), got = c.classList.contains('sel');
+      c.classList.remove('sel', 'pickable');
+      if (want && got) c.classList.add('ok'); else if (want) c.classList.add('missed'); else if (got) c.classList.add('wrong');
+      if (want !== got) ok = false;
     });
-    return { k, b };
+    const names = t.ans.map(i => 'ABCD'[i]);
+    report(ctx, ok, 'Nicht ganz – richtig ' + (names.length ? (names.length > 1 ? 'sind die Skripte ' : 'ist Skript ') + names.join(' und ') : 'ist: keines der Skripte') + '.');
   });
-  ctx.body.append(ch);
+  check.disabled = false;
 }
 
-/* ---- Typ: Was passiert? ---- */
+/* ---- Typ: Was passiert? (Antwort auswählen) ---- */
 function viewPred(ctx) {
   const t = ctx.t;
-  question(ctx, t.q, 'Lies das Skript von oben nach unten.');
-  const c = el('div', 'card single'); c.append(scriptEl(t.script));
-  ctx.body.append(c);
+  question(ctx, t.q, 'Lies die Skripte von oben nach unten. Wähle eine Antwort und klicke auf „Überprüfen“.');
+  ctx.body.append(scriptsView(t.sc));
   const ch = el('div', 'txt-opts');
   const btns = shuffle([...t.good.map(a => ({ a, ok: true })), ...t.bad.map(a => ({ a, ok: false }))]).map(o => {
     const b = el('button', 'txt-opt', o.a); b.type = 'button'; ch.append(b);
-    b.addEventListener('click', () => {
-      if (quiz.done) return;
-      btns.forEach(x => { x.b.disabled = true; if (x.o.ok) x.b.classList.add(o.ok ? 'correct' : 'missed'); });
-      if (!o.ok) b.classList.add('wrong');
-      report(ctx, o.ok, 'Leider falsch.');
-    });
     return { o, b };
   });
   ctx.body.append(ch);
+  const check = mkCheck(ctx, () => {
+    let ok = true;
+    btns.forEach(({ o, b }) => {
+      b.disabled = true;
+      const chosen = b.classList.contains('sel'); b.classList.remove('sel');
+      if (o.ok) b.classList.add(chosen ? 'correct' : 'missed');
+      else if (chosen) b.classList.add('wrong');
+      if (o.ok !== chosen) ok = false;
+    });
+    report(ctx, ok, 'Leider falsch.');
+  });
+  btns.forEach(({ b }) => b.addEventListener('click', () => {
+    if (quiz.done) return;
+    btns.forEach(x => x.b.classList.remove('sel')); b.classList.add('sel'); check.disabled = false;
+  }));
 }
 
-/* ---- Typ: Kategorie ---- */
-function viewCat(ctx) {
+/* ---- Typ: Zahl eingeben ---- */
+function viewNum(ctx) {
   const t = ctx.t;
-  question(ctx, 'In welcher Block-Kategorie findest du diesen Block?', 'Die Farbe des Blocks verrät es – aber wie heißt die Kategorie?');
-  const c = el('div', 'card single'); c.append(el('div', 'list')); c.firstChild.append(blockOnly(K(t.id)));
-  ctx.body.append(c);
-  const chips = el('div', 'chips');
-  const btns = Object.keys(CATS).map(k => {
-    const b = el('button', 'chip'); b.type = 'button';
-    const dot = el('span', 'dot'); dot.style.background = CATS[k].c; b.append(dot, CATS[k].n); chips.append(b);
-    b.addEventListener('click', () => {
-      if (quiz.done) return;
-      btns.forEach(x => { x.b.disabled = true; });
-      b.style.borderColor = k === t.cat ? 'var(--green)' : 'var(--red)';
-      if (k !== t.cat) btns.find(x => x.k === t.cat).b.style.borderColor = 'var(--green)';
-      report(ctx, k === t.cat, 'Leider falsch – der Block gehört zu „' + CATS[t.cat].n + '“.');
-    });
-    return { k, b };
+  question(ctx, t.q, 'Lies das Skript von oben nach unten, rechne und tippe die Zahl ein.');
+  ctx.body.append(scriptsView(t.sc));
+  const row = el('div', 'num-row');
+  const inp = el('input', 'num-in'); inp.type = 'text'; inp.inputMode = 'decimal'; inp.placeholder = 'Deine Zahl'; inp.autocomplete = 'off';
+  row.append(inp);
+  if (t.unit) row.append(el('span', 'muted', t.unit));
+  ctx.body.append(row);
+  const check = mkCheck(ctx, () => {
+    const v = parseFloat(inp.value.trim().replace(',', '.'));
+    const ok = Math.abs(v - t.ans) < 1e-9;
+    inp.disabled = true; inp.classList.add(ok ? 'good' : 'bad');
+    report(ctx, ok, 'Leider falsch – richtig ist ' + String(t.ans).replace('.', ',') + (t.unit ? ' ' + t.unit : '') + '.');
   });
-  ctx.body.append(chips);
+  inp.addEventListener('input', () => { check.disabled = !inp.value.trim() || isNaN(parseFloat(inp.value.trim().replace(',', '.'))); });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') check.click(); });
+  ctx.after = () => inp.focus({ preventScroll: true });
+}
+
+/* ---- Typ: Fehler finden (Block im Skript anklicken) ---- */
+function viewFind(ctx) {
+  const t = ctx.t;
+  question(ctx, t.q, 'Klicke direkt auf den Block im Skript (bei mehreren Fehlern auf alle) und dann auf „Überprüfen“.');
+  const w = scriptsView(t.sc); w.classList.add('findable');
+  ctx.body.append(w);
+  const check = mkCheck(ctx, () => {
+    let ok = true;
+    w.querySelectorAll('.blk').forEach(b => {
+      if (!b._inst) return;
+      const bug = !!b._inst.bug, got = b.classList.contains('picked');
+      b.classList.remove('picked');
+      if (bug && got) b.classList.add('good'); else if (bug) b.classList.add('missed'); else if (got) b.classList.add('wrong');
+      if (bug !== got) ok = false;
+    });
+    w.classList.remove('findable');
+    report(ctx, ok, 'Nicht ganz – grün markiert ist der fehlerhafte Block.');
+  });
+  w.addEventListener('click', e => {
+    if (quiz.done) return;
+    const b = e.target.closest('.blk');
+    if (!b || !b._inst) return;
+    b.classList.toggle('picked');
+    check.disabled = !w.querySelector('.blk.picked');
+  });
 }
 
 /* ---- Typ: Skript bauen ---- */
@@ -1055,7 +1123,7 @@ function sameInst(a, b) {
   for (let i = 0; i < a.v.length; i++) {
     const x = a.v[i], y = b.v[i];
     if (isInst(x) || isInst(y)) { if (!(isInst(x) && isInst(y) && sameInst(x, y))) return false; }
-    else if (normVal(x) !== normVal(y)) return false;
+    else if (y !== '*' && normVal(x) !== normVal(y)) return false;
   }
   return a.m.every((l, i) => sameList(l, b.m[i]));
 }
@@ -1080,7 +1148,7 @@ function findInVals(b, target) {
 
 function viewBuild(ctx) {
   const t = ctx.t;
-  question(ctx, t.q, 'Ziehe Blöcke aus dem Vorrat in die Skript-Fläche. Es sind auch Blöcke dabei, die du nicht brauchst.');
+  question(ctx, t.q, 'Ziehe Blöcke aus dem Vorrat in die Skript-Fläche. Du kannst jeden Block mehrfach nehmen. Es sind auch Blöcke dabei, die du nicht brauchst. Zahlen und Dropdowns passt du im Skript an.');
   const wrap = el('div', 'build draggable');
   const left = el('div'), right = el('div');
   left.append(el('h4', null, 'Vorrat'));
@@ -1094,7 +1162,7 @@ function viewBuild(ctx) {
   ctx.body.append(wrap);
 
   bs = { root: [], ws, t, ctx, ctxR: null, done: false, check: null };
-  const check = el('button', 'primary-btn', 'Prüfen'); check.type = 'button'; check.disabled = true;
+  const check = el('button', 'primary-btn', 'Überprüfen'); check.type = 'button'; check.disabled = true;
   const reset = el('button', 'secondary-btn', '↺ Zurücksetzen'); reset.type = 'button';
   bs.check = check;
   reset.addEventListener('click', () => { if (bs.done) return; bs.root.length = 0; renderWs(); });
