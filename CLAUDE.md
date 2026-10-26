@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A single-file, German-language learning app for SQL/database vocabulary: `sql-begriffe/index.html` (one "mini" among several; the root `index.html` is the bi_minis tile overview with a hand-maintained `projects` array). There is no build system, package manager, tests, linter, or git repo. Open the file directly in a browser to run it; edit it in place.
 
+A second mini, `scratch-bloecke/index.html`, quizzes Scratch 3 blocks (Bewegung, Aussehen, Ereignisse, Steuerung, Fühlen, Operatoren, Variablen). Blocks are rendered with the original Scratch colors/shapes from the library `L` (`def(...)`), instances are built with `K(id, ...values)`; tasks are added with `pick/cmp/pred/build/bcat`. Task counts are computed, nothing is hardcoded.
+
 ## Architecture
 
 Everything (CSS, markup, JS) lives in the one HTML file, with no external dependencies.
