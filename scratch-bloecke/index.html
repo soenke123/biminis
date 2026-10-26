@@ -614,9 +614,10 @@ num('control', 'Wie viele Schritte geht die Figur insgesamt?',
 num('control', 'Welchen Wert hat Punkte am Ende?',
   [K('flag'), K('setVar', 'Punkte', 0), K('repeat', 5, [K('changeVar', 'Punkte', 1), K('if', K('gt', P, 3), [K('changeVar', 'Punkte', 10)])])], 25,
   'Durchläufe 1–3: Punkte 1, 2, 3 (nicht > 3). Durchlauf 4: 4 → +10 = 14. Durchlauf 5: 15 → +10 = 25.');
-pick('control', 'Welche Blöcke haben eine sechseckige Lücke für eine Bedingung?',
-  [K('if'), K('ifElse'), K('repeatUntil'), K('waitUntil')], [K('wait', 1), K('repeat', 10), K('forever'), K('stop', 'alles')],
-  '„falls“, „falls … sonst“, „wiederhole bis“ und „warte bis“ prüfen eine Bedingung. „wiederhole 10 mal“ und „warte 1 Sekunden“ brauchen nur eine Zahl.');
+pred('control', 'Diese Blöcke haben alle eine sechseckige Lücke. Was gehört in diese Lücke?',
+  [S('', [K('if')]), S('', [K('ifElse')]), S('', [K('repeatUntil')]), S('', [K('waitUntil')])],
+  ['Eine Aussage, die wahr oder falsch sein kann'], ['Eine Zahl, z. B. wie oft wiederholt wird', 'Ein Text, den die Figur sagt', 'Ein weiterer Stapelblock'],
+  'In die sechseckige Lücke kommt eine Bedingung – eine Aussage wie „wird Rand berührt?“ oder „Punkte > 3“, die entweder wahr oder falsch ist. Danach entscheidet der Block, was passiert.');
 pick('control', 'Im Skript nach der Flagge soll das Programm warten, bis die Leertaste gedrückt wird, und erst dann weitermachen. Welcher Block passt?',
   [K('waitUntil', K('keyDown', 'Leertaste'))], [K('wait', 1), K('if', K('keyDown', 'Leertaste')), K('forever')],
   '„warte bis <Taste gedrückt?>“ pausiert, bis die Bedingung wahr ist. „falls“ prüft nur einmal und wartet nicht.',
