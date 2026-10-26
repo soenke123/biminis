@@ -43,6 +43,37 @@
   .tile .name { font-size: 1.15rem; font-weight: 600; word-break: break-word; }
   .tile .folder { color: var(--muted); font-size: .8rem; margin-top: 4px; font-family: ui-monospace, Consolas, monospace; }
   .tile .date { color: var(--muted); font-size: .85rem; margin-top: 16px; }
+  .tile-wrap { position: relative; display: flex; }
+  .tile-wrap a.tile { flex: 1; }
+  .qr-btn {
+    position: absolute; top: 10px; right: 10px;
+    width: 34px; height: 34px; padding: 5px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--muted); cursor: pointer;
+    transition: color .15s, border-color .15s;
+  }
+  .qr-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .qr-btn svg { width: 100%; height: 100%; display: block; }
+  .tile .name { padding-right: 36px; }
+  .qr-modal {
+    position: fixed; inset: 0; z-index: 10;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, .7); padding: 16px;
+  }
+  .qr-modal.open { display: flex; }
+  .qr-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; text-align: center; max-width: 340px; width: 100%;
+  }
+  .qr-card h2 { margin: 0 0 14px; font-size: 1.05rem; }
+  .qr-card canvas { width: 100%; max-width: 280px; height: auto; image-rendering: pixelated; border-radius: 6px; }
+  .qr-url { color: var(--muted); font-size: .75rem; margin-top: 12px; word-break: break-all; font-family: ui-monospace, Consolas, monospace; }
+  .qr-close {
+    margin-top: 14px; padding: 8px 18px; cursor: pointer;
+    background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; font: inherit;
+  }
+  .qr-close:hover { border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -54,14 +85,212 @@
   <div id="grid" class="grid"></div>
 </main>
 
+<div id="qrModal" class="qr-modal" role="dialog" aria-modal="true">
+  <div class="qr-card">
+    <h2 id="qrTitle"></h2>
+    <canvas id="qrCanvas"></canvas>
+    <div id="qrUrl" class="qr-url"></div>
+    <button id="qrClose" class="qr-close" type="button">Schließen</button>
+  </div>
+</div>
+
 <script>
   // Neue Minis hier eintragen (neueste zuerst): Ordnername, Anzeigename, Erstelldatum.
   const projects = [
     { folder: 'sql-begriffe', name: 'SQL-Begriffe trainieren', created: '2026-10-25' },
   ];
 
+  // --- Minimaler QR-Code-Generator (Byte-Modus, Fehlerkorrektur M, Version 1-20) ---
+  const QR_ECC = [-1,10,16,26,18,24,16,18,22,22,26,30,22,22,24,24,28,28,26,26,26];
+  const QR_BLOCKS = [-1,1,1,1,2,2,4,4,4,5,5,5,8,9,9,10,10,11,13,14,16];
+
+  function qrRawModules(ver) {
+    let r = (16 * ver + 128) * ver + 64;
+    if (ver >= 2) { const n = Math.floor(ver / 7) + 2; r -= (25 * n - 10) * n - 55; if (ver >= 7) r -= 36; }
+    return r;
+  }
+  function gfMul(x, y) {
+    let z = 0;
+    for (let i = 7; i >= 0; i--) { z = (z << 1) ^ ((z >>> 7) * 0x11D); z ^= ((y >>> i) & 1) * x; }
+    return z;
+  }
+  function rsDivisor(d) {
+    const res = new Array(d).fill(0); res[d - 1] = 1;
+    let root = 1;
+    for (let i = 0; i < d; i++) {
+      for (let j = 0; j < d; j++) { res[j] = gfMul(res[j], root); if (j + 1 < d) res[j] ^= res[j + 1]; }
+      root = gfMul(root, 2);
+    }
+    return res;
+  }
+  function rsRemainder(data, div) {
+    const res = new Array(div.length).fill(0);
+    for (const b of data) {
+      const f = b ^ res.shift(); res.push(0);
+      div.forEach((c, i) => { res[i] ^= gfMul(c, f); });
+    }
+    return res;
+  }
+
+  function makeQr(text) {
+    const bytes = Array.from(new TextEncoder().encode(text));
+    let ver = 1;
+    for (;; ver++) {
+      if (ver > 20) throw new Error('Text zu lang für QR-Code');
+      const cap = Math.floor(qrRawModules(ver) / 8) - QR_ECC[ver] * QR_BLOCKS[ver];
+      if (4 + (ver < 10 ? 8 : 16) + bytes.length * 8 <= cap * 8) break;
+    }
+    const nBlocks = QR_BLOCKS[ver], eccLen = QR_ECC[ver];
+    const rawCw = Math.floor(qrRawModules(ver) / 8);
+    const dataCw = rawCw - eccLen * nBlocks;
+
+    const bits = [];
+    const put = (v, n) => { for (let i = n - 1; i >= 0; i--) bits.push((v >>> i) & 1); };
+    put(4, 4); put(bytes.length, ver < 10 ? 8 : 16);
+    bytes.forEach(b => put(b, 8));
+    put(0, Math.min(4, dataCw * 8 - bits.length));
+    while (bits.length % 8) bits.push(0);
+    for (let pad = 0xEC; bits.length < dataCw * 8; pad ^= 0xEC ^ 0x11) put(pad, 8);
+    const data = [];
+    for (let i = 0; i < bits.length; i += 8) data.push(parseInt(bits.slice(i, i + 8).join(''), 2));
+
+    // Blöcke bilden, Fehlerkorrektur anhängen, verschachteln
+    const nShort = nBlocks - rawCw % nBlocks, shortLen = Math.floor(rawCw / nBlocks);
+    const div = rsDivisor(eccLen), blocks = [];
+    for (let i = 0, k = 0; i < nBlocks; i++) {
+      const dat = data.slice(k, k + shortLen - eccLen + (i < nShort ? 0 : 1));
+      k += dat.length;
+      const ecc = rsRemainder(dat, div);
+      if (i < nShort) dat.push(0);
+      blocks.push(dat.concat(ecc));
+    }
+    const cw = [];
+    for (let i = 0; i < blocks[0].length; i++)
+      blocks.forEach((b, j) => { if (i !== shortLen - eccLen || j >= nShort) cw.push(b[i]); });
+
+    // Matrix aufbauen
+    const size = ver * 4 + 17;
+    const mod = Array.from({ length: size }, () => new Array(size).fill(false));
+    const fn = Array.from({ length: size }, () => new Array(size).fill(false));
+    const set = (x, y, v) => { mod[y][x] = v; fn[y][x] = true; };
+
+    for (let i = 0; i < size; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
+    const finder = (cx, cy) => {
+      for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+        const d = Math.max(Math.abs(dx), Math.abs(dy)), x = cx + dx, y = cy + dy;
+        if (x >= 0 && x < size && y >= 0 && y < size) set(x, y, d !== 2 && d !== 4);
+      }
+    };
+    finder(3, 3); finder(size - 4, 3); finder(3, size - 4);
+    let align = [];
+    if (ver > 1) {
+      const n = Math.floor(ver / 7) + 2;
+      const step = ver === 32 ? 26 : Math.ceil((ver * 4 + 4) / (n * 2 - 2)) * 2;
+      align = [6];
+      for (let pos = size - 7; align.length < n; pos -= step) align.splice(1, 0, pos);
+    }
+    align.forEach((ax, i) => align.forEach((ay, j) => {
+      if ((i === 0 && j === 0) || (i === 0 && j === align.length - 1) || (i === align.length - 1 && j === 0)) return;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++)
+        set(ax + dx, ay + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1);
+    }));
+    const formatBits = mask => {
+      let rem = mask; // Stufe M = 0b00
+      for (let i = 0; i < 10; i++) rem = (rem << 1) ^ ((rem >>> 9) * 0x537);
+      const b = ((mask << 10) | rem) ^ 0x5412, bit = i => ((b >>> i) & 1) !== 0;
+      for (let i = 0; i <= 5; i++) set(8, i, bit(i));
+      set(8, 7, bit(6)); set(8, 8, bit(7)); set(7, 8, bit(8));
+      for (let i = 9; i < 15; i++) set(14 - i, 8, bit(i));
+      for (let i = 0; i < 8; i++) set(size - 1 - i, 8, bit(i));
+      for (let i = 8; i < 15; i++) set(8, size - 15 + i, bit(i));
+      set(8, size - 8, true);
+    };
+    formatBits(0);
+    if (ver >= 7) {
+      let rem = ver;
+      for (let i = 0; i < 12; i++) rem = (rem << 1) ^ ((rem >>> 11) * 0x1F25);
+      const b = (ver << 12) | rem;
+      for (let i = 0; i < 18; i++) {
+        const v = ((b >>> i) & 1) !== 0, a = size - 11 + i % 3, c = Math.floor(i / 3);
+        set(a, c, v); set(c, a, v);
+      }
+    }
+
+    // Daten-Module im Zickzack platzieren
+    let bi = 0;
+    for (let right = size - 1; right >= 1; right -= 2) {
+      if (right === 6) right = 5;
+      for (let vert = 0; vert < size; vert++) for (let j = 0; j < 2; j++) {
+        const x = right - j, y = ((right + 1) & 2) === 0 ? size - 1 - vert : vert;
+        if (!fn[y][x] && bi < cw.length * 8) { mod[y][x] = ((cw[bi >>> 3] >>> (7 - (bi & 7))) & 1) !== 0; bi++; }
+      }
+    }
+
+    // Beste Maske wählen (vereinfachte Strafpunkte)
+    const masks = [
+      (x, y) => (x + y) % 2 === 0, (x, y) => y % 2 === 0, (x, y) => x % 3 === 0,
+      (x, y) => (x + y) % 3 === 0, (x, y) => (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0,
+      (x, y) => x * y % 2 + x * y % 3 === 0, (x, y) => (x * y % 2 + x * y % 3) % 2 === 0,
+      (x, y) => ((x + y) % 2 + x * y % 3) % 2 === 0,
+    ];
+    const apply = m => {
+      for (let y = 0; y < size; y++) for (let x = 0; x < size; x++)
+        if (!fn[y][x] && masks[m](x, y)) mod[y][x] = !mod[y][x];
+    };
+    const penalty = () => {
+      let p = 0;
+      for (let t = 0; t < 2; t++) for (let a = 0; a < size; a++) {
+        let run = 1;
+        for (let b = 1; b < size; b++) {
+          const cur = t ? mod[b][a] : mod[a][b], prev = t ? mod[b - 1][a] : mod[a][b - 1];
+          if (cur === prev) { run++; if (run === 5) p += 3; else if (run > 5) p++; } else run = 1;
+        }
+      }
+      for (let y = 0; y < size - 1; y++) for (let x = 0; x < size - 1; x++)
+        if (mod[y][x] === mod[y][x + 1] && mod[y][x] === mod[y + 1][x] && mod[y][x] === mod[y + 1][x + 1]) p += 3;
+      return p;
+    };
+    let best = 0, bestP = Infinity;
+    for (let m = 0; m < 8; m++) {
+      apply(m); formatBits(m);
+      const p = penalty();
+      if (p < bestP) { bestP = p; best = m; }
+      apply(m);
+    }
+    apply(best); formatBits(best);
+    return mod;
+  }
+
+  function drawQr(canvas, text) {
+    const m = makeQr(text), border = 4, scale = 8, n = m.length + border * 2;
+    canvas.width = canvas.height = n * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#000';
+    m.forEach((row, y) => row.forEach((v, x) => { if (v) ctx.fillRect((x + border) * scale, (y + border) * scale, scale, scale); }));
+  }
+
+  // --- QR-Dialog ---
+  const modal = document.getElementById('qrModal');
+  function showQr(p) {
+    const url = new URL(p.folder + '/index.html', location.href).href;
+    document.getElementById('qrTitle').textContent = p.name;
+    document.getElementById('qrUrl').textContent = url;
+    drawQr(document.getElementById('qrCanvas'), url);
+    modal.classList.add('open');
+  }
+  const closeQr = () => modal.classList.remove('open');
+  document.getElementById('qrClose').addEventListener('click', closeQr);
+  modal.addEventListener('click', e => { if (e.target === modal) closeQr(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeQr(); });
+
+  const QR_ICON = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm8-2h3v3h-3v-3zm5 0h3v3h-3v-3zm-5 5h3v3h-3v-3zm5 0h3v3h-3v-3z"/></svg>';
+
   const grid = document.getElementById('grid');
   for (const p of projects) {
+    const wrap = document.createElement('div');
+    wrap.className = 'tile-wrap';
+
     const a = document.createElement('a');
     a.className = 'tile';
     a.href = p.folder + '/index.html';
@@ -80,7 +309,17 @@
     date.textContent = 'Erstellt: ' + new Date(p.created).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
     a.append(top, date);
-    grid.appendChild(a);
+
+    const qr = document.createElement('button');
+    qr.type = 'button';
+    qr.className = 'qr-btn';
+    qr.title = 'QR-Code anzeigen';
+    qr.setAttribute('aria-label', 'QR-Code für ' + p.name + ' anzeigen');
+    qr.innerHTML = QR_ICON;
+    qr.addEventListener('click', () => showQr(p));
+
+    wrap.append(a, qr);
+    grid.appendChild(wrap);
   }
 </script>
 </body>
