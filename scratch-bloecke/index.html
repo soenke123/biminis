@@ -140,9 +140,17 @@ input.fld:focus { box-shadow: 0 0 0 3px rgba(255,255,255,.7); }
 .ov-cat { margin-top: 22px; }
 .ov-cat h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; font-size: 1.05rem; }
 .ov-grid { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: flex-start; }
+.sel-label { margin: 16px 0 0; font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.ov-item { position: relative; }
+.badge { position: absolute; top: -4px; right: -4px; font-size: 16px; line-height: 1; filter: drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
+.rate-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.rate-btn { background: var(--panel); border: 2px solid var(--line); border-radius: 10px; padding: 8px 12px; font-weight: 700; color: var(--text); }
+.rate-btn:hover { border-color: var(--accent); }
+.rate-btn[aria-pressed="true"] { border-color: var(--text); background: var(--panel2); box-shadow: 0 0 0 2px rgba(28,37,64,.12); }
 .ov-item { background: transparent; border: 2px solid transparent; border-radius: 12px; padding: 6px 8px 10px; text-align: left; transition: background .12s, border-color .12s; }
 .ov-item:hover, .ov-item.active { background: var(--panel2); border-color: var(--line); }
-.sheet { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 50; max-width: 640px; margin: 0 auto; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; box-shadow: 0 12px 40px rgba(28,37,64,.28); animation: up .16s ease-out; }
+.sheet { max-height: 70vh; overflow-y: auto; position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 50; max-width: 640px; margin: 0 auto; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; box-shadow: 0 12px 40px rgba(28,37,64,.28); animation: up .16s ease-out; }
 @keyframes up { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
 .sheet .blk { margin: 4px 0 10px; }
 .sheet p { margin: 0 0 8px; }
@@ -161,8 +169,8 @@ footer { color: var(--muted); font-size: .82rem; text-align: center; padding: 20
   </header>
   <nav class="toolbar" aria-label="Steuerung">
     <div class="seg" role="group" aria-label="Modus auswählen">
-      <button class="mode-btn" id="quizMode" aria-pressed="true">Quiz</button>
-      <button class="mode-btn" id="refMode" aria-pressed="false">Bausteine ansehen</button>
+      <button class="mode-btn" id="refMode" aria-pressed="true">Bausteine</button>
+      <button class="mode-btn" id="quizMode" aria-pressed="false">Quiz</button>
     </div>
     <div class="stats" id="stats"></div>
   </nav>
@@ -281,10 +289,6 @@ def('eq', 'operators', 'bool', [{ n: '' }, ' = ', { n: 50 }], 'Wahr, wenn beide 
 def('and', 'operators', 'bool', [{ b: 1 }, ' und ', { b: 1 }], 'Wahr, wenn BEIDE Bedingungen wahr sind.');
 def('or', 'operators', 'bool', [{ b: 1 }, ' oder ', { b: 1 }], 'Wahr, wenn MINDESTENS EINE der Bedingungen wahr ist.');
 def('not', 'operators', 'bool', ['nicht ', { b: 1 }], 'Dreht eine Bedingung um: aus wahr wird falsch und umgekehrt.');
-def('join', 'operators', 'reporter', ['verbinde ', { t: 'Hallo ' }, ' und ', { t: 'Welt' }], 'Hängt zwei Texte direkt aneinander (ohne automatisches Leerzeichen).');
-def('length', 'operators', 'reporter', ['Länge von ', { t: 'Apfel' }], 'Liefert, aus wie vielen Zeichen ein Text besteht.');
-def('mod', 'operators', 'reporter', [{ n: '' }, ' mod ', { n: '' }], 'Liefert den Rest einer Division, z. B. 10 mod 3 = 1. Damit prüft man gerade/ungerade.');
-def('round', 'operators', 'reporter', ['runde ', { n: '' }], 'Rundet eine Zahl auf die nächste ganze Zahl.');
 
 // Variablen
 def('setVar', 'variables', 'stack', ['setze ', { d: VARS }, ' auf ', { n: 0 }], 'Überschreibt den Wert einer Variablen mit einem festen Wert.');
@@ -565,7 +569,7 @@ pick('sensing', 'Du willst prüfen, ob die Figur den Mauszeiger berührt. Welche
   [K('touching', 'Mauszeiger')], [K('mouseDown'), K('distance', 'Mauszeiger'), K('keyDown', 'Leertaste')],
   '„wird Mauszeiger berührt?“ ist ein sechseckiger Block, den man in „falls“ oder „warte bis“ einsetzt.');
 pick('sensing', 'Welcher Block stellt dem Spieler eine Frage und wartet auf die Eingabe?',
-  [K('ask', 'Wie heißt du?')], [K('answer'), K('say', 'Hallo!'), K('join', 'Hallo ', 'Welt')],
+  [K('ask', 'Wie heißt du?')], [K('answer'), K('say', 'Hallo!'), K('wait', 1)],
   '„frage … und warte“ zeigt ein Eingabefeld. Die Eingabe steht danach im Block „Antwort“.');
 pick('sensing', 'Welcher Block liefert, was der Spieler zuletzt eingetippt hat?',
   [K('answer')], [K('ask', 'Wie heißt du?'), K('mouseX'), K('timer')],
@@ -590,15 +594,9 @@ pick('operators', 'Du willst wie mit einem Würfel eine Zahl von 1 bis 6 auswür
 pick('operators', 'Eine Bedingung soll nur wahr sein, wenn BEIDE Teile wahr sind. Welcher Block passt?',
   [K('and')], [K('or'), K('not'), K('gt', '', 50)],
   '„und“ ist nur wahr, wenn beide Seiten wahr sind. „oder“ reicht schon eine.');
-pick('operators', 'Du willst zwei Wörter zu einem Text zusammenhängen. Welcher Block macht das?',
-  [K('join', 'Hallo', 'Welt')], [K('add', 3, 4), K('length', 'Apfel'), K('random', 1, 10)],
-  '„verbinde … und …“ klebt Texte aneinander. Ein Leerzeichen musst du selbst mit einfügen.');
 pick('operators', 'Welcher Block ist wahr, wenn eine Zahl größer als 50 ist?',
   [K('gt', '', 50)], [K('lt', '', 50), K('eq', '', 50), K('and')],
   '„>“ prüft „größer als“, „<“ prüft „kleiner als“, „=“ prüft Gleichheit.');
-pick('operators', 'Welcher Block liefert den Rest einer Division (zum Beispiel, um gerade und ungerade Zahlen zu erkennen)?',
-  [K('mod', 10, 3)], [K('div', 10, 3), K('round', 3.4), K('sub', 10, 3)],
-  '„10 mod 3“ ergibt 1, denn 10 geteilt durch 3 geht 3 Mal auf und es bleibt 1.');
 pick('operators', 'Welcher Block rechnet 7 mal 8?',
   [K('mul', 7, 8)], [K('add', 7, 8), K('sub', 7, 8), K('div', 7, 8)],
   'In Scratch ist das Malzeichen ein Stern *, das Geteiltzeichen ein Schrägstrich /.');
@@ -634,7 +632,7 @@ pick('variables', 'Die Lebensanzeige soll von der Bühne verschwinden. Welcher B
  ['broadcast', 'Nachrichten senden und empfangen sind Ereignisse.'], ['wait', 'Warten gehört zu Steuerung.'],
  ['random', 'Zufallszahlen liefert Operatoren.'], ['show', 'Sichtbarkeit und Größe sind Aussehen.'],
  ['ifElse', 'Bedingungen wie „falls … sonst“ sind Steuerung.'], ['gotoxy', 'Orte auf der Bühne sind Bewegung.'],
- ['join', 'Texte verbinden ist ein Operator.'], ['ask', 'Fragen an den Spieler gehören zu Fühlen.']]
+ ['ask', 'Fragen an den Spieler gehören zu Fühlen.']]
   .forEach(([id, ex]) => bcat(id, ex));
 
 /* ---- Skripte vergleichen ---- */
@@ -677,10 +675,10 @@ cmp('variables', 'Die Variable Punkte soll am Ende den Wert 5 haben. Welche Skri
 cmp('control', 'Die Figur soll erst nach 3 Sekunden „Los!“ sagen. Welches Skript tut das?',
   [K('flag'), K('wait', 3), K('say', 'Los!')], [K('flag'), K('say', 'Los!'), K('wait', 3)], 'A',
   'Die Reihenfolge entscheidet: In B kommt „Los!“ sofort und erst danach die Pause.');
-cmp('sensing', 'Die Figur soll nach dem Namen fragen und ihn dann begrüßen („Hallo …“). Welches Skript tut das?',
-  [K('flag'), K('ask', 'Wie heißt du?'), K('say', K('join', 'Hallo ', K('answer')))],
-  [K('flag'), K('say', K('join', 'Hallo ', K('answer'))), K('ask', 'Wie heißt du?')], 'A',
-  'Die Antwort gibt es erst nach der Frage. In B wird begrüßt, bevor eine Antwort da ist.');
+cmp('sensing', 'Die Figur soll nach dem Namen fragen und dann die Antwort sagen. Welches Skript tut das?',
+  [K('flag'), K('ask', 'Wie heißt du?'), K('say', K('answer'))],
+  [K('flag'), K('say', K('answer')), K('ask', 'Wie heißt du?')], 'A',
+  'Die Antwort gibt es erst nach der Frage. In B wird „Antwort“ gesagt, bevor jemand etwas eingetippt hat.');
 cmp('control', 'Die Figur soll verschwinden, sobald man mit dem Mauszeiger über sie fährt – egal, wann das passiert. Welches Skript tut das?',
   [K('flag'), K('forever', [K('if', K('touching', 'Mauszeiger'), [K('hide')])])], [K('flag'), K('if', K('touching', 'Mauszeiger'), [K('hide')])], 'A',
   'B prüft die Bedingung nur ein einziges Mal direkt nach dem Start. Erst die Endlosschleife in A prüft ständig.');
@@ -695,9 +693,6 @@ pred('variables', 'Welchen Wert hat Punkte am Ende?',
 pred('variables', 'Welchen Wert hat Punkte am Ende?',
   [K('flag'), K('setVar', 'Punkte', 0), K('repeat', 4, [K('changeVar', 'Punkte', 2)])], ['8'], ['4', '6', '2'],
   'Die Schleife läuft 4 Mal und addiert jedes Mal 2: 0 → 2 → 4 → 6 → 8.');
-pred('operators', 'Was steht in der Sprechblase der Figur?',
-  [K('flag'), K('say', K('join', 'Hallo', 'Scratch'))], ['HalloScratch'], ['Hallo Scratch', 'Hallo+Scratch', 'Scratch'],
-  '„verbinde“ hängt die Texte direkt aneinander. Ein Leerzeichen müsste man selbst eintippen.');
 pred('control', 'Die Variable Punkte hat den Wert 8. Was sagt die Figur?',
   [K('flag'), K('setVar', 'Punkte', 8), K('ifElse', K('gt', K('varPunkte'), 10), [K('say', 'Gewonnen')], [K('say', 'Weiter')])],
   ['Weiter'], ['Gewonnen', 'Beides nacheinander', 'Nichts'],
@@ -708,9 +703,6 @@ pred('operators', 'Was sagt die Figur?',
 pred('motion', 'Die Figur schaut nach rechts. In welche Richtung schaut sie am Ende (in Grad)?',
   [K('flag'), K('dir', 90), K('turnR', 90)], ['180'], ['0', '90', '360'],
   '90 Grad (rechts) plus 90 Grad im Uhrzeigersinn ergibt 180 Grad – die Figur schaut nach unten.');
-pred('operators', 'Was sagt die Figur?',
-  [K('flag'), K('say', K('mod', 10, 3))], ['1'], ['3', '0', '3,33'],
-  '10 geteilt durch 3 geht 3 Mal auf, der Rest ist 1.');
 pred('motion', 'Die Figur schaut nach rechts. Wo steht sie am Ende (x-Position)?',
   [K('flag'), K('gotoxy', -100, 0), K('dir', 90), K('repeat', 5, [K('move', 20)])], ['0'], ['-100', '100', '-80'],
   'Start bei −100. Fünf Mal 20 Schritte sind 100 Schritte: −100 + 100 = 0.');
@@ -745,7 +737,7 @@ build('operators', 'Nach Klick auf die Flagge soll die Figur das Ergebnis von 3 
   [K('flag'), K('say', K('add', '3', '4'))],
   'Der Plus-Block liefert 7. Er wird in das Textfeld von „sage“ gezogen.');
 build('sensing', 'Nach Klick auf die Flagge soll die Figur „Wie heißt du?“ fragen und dann die Antwort sagen.',
-  [K('flag'), K('ask', 'Wie heißt du?'), K('say', 'Hallo!'), K('answer'), K('join', 'Hallo ', 'Welt')],
+  [K('flag'), K('ask', 'Wie heißt du?'), K('say', 'Hallo!'), K('answer'), K('wait', 1)],
   [K('flag'), K('ask', 'Wie heißt du?'), K('say', K('answer'))],
   'Erst fragen, dann den Block „Antwort“ in „sage“ ziehen.');
 build('operators', 'Nach Klick auf die Flagge soll sich die Figur auf eine zufällige x-Position zwischen -100 und 100 setzen.',
@@ -765,11 +757,41 @@ build('variables', 'Nach Klick auf die Flagge sollen die Leben auf 3 gesetzt und
   [K('flag'), K('setVar', 'Leben', 3), K('showVar', 'Leben')],
   'In beiden Blöcken muss die Variable „Leben“ eingestellt sein; „setze … auf 3“ legt den Startwert fest.');
 
+/* Welche Bausteine kommen in einer Aufgabe vor? (für die Auswahl nach Selbsteinschätzung) */
+function idsIn(x, out) {
+  if (Array.isArray(x)) x.forEach(i => idsIn(i, out));
+  else if (isInst(x)) { out.add(x.id); x.v.forEach(v => idsIn(v, out)); x.m.forEach(m => idsIn(m, out)); }
+  return out;
+}
+function taskIds(t) {
+  if (!t.ids) {
+    const o = new Set();
+    if (t.type === 'pick') idsIn(t.opts.filter(x => x.ok).map(x => x.b), o);
+    else if (t.type === 'cmp') idsIn([t.A, t.B], o);
+    else if (t.type === 'pred') idsIn(t.script, o);
+    else if (t.type === 'build') idsIn(t.sol, o);
+    else o.add(t.id);
+    t.ids = o;
+  }
+  return t.ids;
+}
+
 /* ================= Zustand ================= */
 const app = $('#app');
 const statsEl = $('#stats');
-let mode = 'quiz';
-let sel = 'all';
+let mode = 'ref';
+const LEVELS = [
+  ['no',  '❌', 'Kann ich nicht', '#d6364a'],
+  ['mid', '🟡', 'Noch üben', '#e0a100'],
+  ['yes', '✅', 'Kann ich', '#138a5e'],
+  ['new', '⚪', 'Noch nicht eingeordnet', '#8a93a8'],
+];
+let rating = {};
+try { rating = JSON.parse(localStorage.getItem('scratch-bloecke-rating') || '{}') || {}; } catch (e) { rating = {}; }
+function saveRating() { try { localStorage.setItem('scratch-bloecke-rating', JSON.stringify(rating)); } catch (e) { /* ohne Speicher weiter */ } }
+const levelOf = id => rating[id] || 'new';
+const selCats = new Set(Object.keys(CATS));
+const selLv = new Set(LEVELS.map(l => l[0]));
 let quiz = null;
 let bs = null; // Zustand der Bau-Aufgabe
 let sheetEl = null;
@@ -804,35 +826,60 @@ function showSetup() {
   app.textContent = '';
   const p = el('section', 'panel');
   p.append(el('h2', null, 'Was möchtest du üben?'));
-  p.append(el('p', 'muted', 'Wähle ein Thema – oder mische alles. Es gibt Aufgaben zum Anklicken, zum Vergleichen von Skripten und zum Zusammenbauen.'));
-  const chips = el('div', 'chips');
-  const opts = [['all', 'Alles gemischt', 'conic-gradient(#4C97FF, #9966FF, #FFBF00, #FFAB19, #5CB1D6, #59C059, #FF8C1A, #4C97FF)'], ...Object.keys(CATS).map(k => [k, CATS[k].n, CATS[k].c])];
-  opts.forEach(([k, name, color]) => {
-    const b = el('button', 'chip'); b.type = 'button';
-    b.setAttribute('aria-pressed', sel === k);
-    const dot = el('span', 'dot'); dot.style.background = color; b.append(dot, name);
-    b.addEventListener('click', () => { sel = k; chips.querySelectorAll('.chip').forEach((c, i) => c.setAttribute('aria-pressed', opts[i][0] === k)); count.textContent = roundInfo(); });
-    chips.append(b);
-  });
-  p.append(chips);
-  const count = el('p', 'hint', roundInfo());
-  p.append(count);
-  const row = el('div', 'action-row');
+  p.append(el('p', 'muted', 'Klicke Themen und Selbsteinschätzungen an oder ab – du bekommst nur Aufgaben, die zu deiner Auswahl passen.'));
+
+  p.append(el('div', 'sel-label', 'Themen'));
+  const cats = el('div', 'chips');
+  const info = el('p', 'hint');
   const go = el('button', 'primary-btn', '▶ Los geht’s'); go.type = 'button';
+  const refresh = () => {
+    const n = pool().length;
+    info.textContent = n ? n + ' passende Aufgaben (eine Runde hat höchstens 15).' : 'Keine Aufgabe passt zu dieser Auswahl – aktiviere mehr Themen oder Stufen.';
+    go.disabled = !n;
+  };
+  const chip = (set, key, name, dotColor, parent) => {
+    const b = el('button', 'chip'); b.type = 'button';
+    b.setAttribute('aria-pressed', set.has(key));
+    const dot = el('span', 'dot'); dot.style.background = dotColor; b.append(dot, name);
+    b.addEventListener('click', () => { if (set.has(key)) set.delete(key); else set.add(key); b.setAttribute('aria-pressed', set.has(key)); refresh(); });
+    parent.append(b);
+  };
+  Object.keys(CATS).forEach(k => chip(selCats, k, CATS[k].n, CATS[k].c, cats));
+  p.append(cats);
+
+  p.append(el('div', 'sel-label', 'Meine Selbsteinschätzung'));
+  const lvs = el('div', 'chips');
+  LEVELS.forEach(([k, emoji, name, color]) => {
+    const n = Object.keys(L).filter(id => levelOf(id) === k).length;
+    chip(selLv, k, emoji + ' ' + name + ' (' + n + ')', color, lvs);
+  });
+  p.append(lvs);
+  const quick = el('div', 'action-row'); quick.style.marginTop = '8px';
+  const toggleAll = (label, f) => { const b = el('button', 'secondary-btn', label); b.type = 'button'; b.addEventListener('click', () => { f(); showSetup(); }); quick.append(b); };
+  toggleAll('Alles aktivieren', () => { Object.keys(CATS).forEach(k => selCats.add(k)); LEVELS.forEach(l => selLv.add(l[0])); });
+  toggleAll('Nur Unsicheres', () => { selLv.clear(); selLv.add('no'); selLv.add('mid'); });
+  p.append(quick);
+
+  p.append(info);
   go.addEventListener('click', startQuiz);
-  row.append(go); p.append(row);
+  const row = el('div', 'action-row'); row.append(go); p.append(row);
   app.append(p);
+  refresh();
 }
-function pool() { return sel === 'all' ? T : T.filter(t => t.cat === sel); }
-function roundInfo() { const n = pool().length; return sel === 'all' ? 'Eine Runde besteht aus 15 zufälligen Aufgaben (von ' + n + ').' : n + ' Aufgaben zu diesem Thema (höchstens 14 pro Runde).'; }
+function pool() {
+  return T.filter(t => selCats.has(t.cat) && [...taskIds(t)].some(id => selLv.has(levelOf(id))));
+}
 
 function startQuiz() {
-  let tasks;
-  if (sel === 'all') {
-    const by = t => shuffle(T.filter(x => x.type === t));
-    tasks = shuffle([...by('pick').slice(0, 6), ...by('cmp').slice(0, 3), ...by('pred').slice(0, 2), ...by('build').slice(0, 2), ...by('cat').slice(0, 2)]);
-  } else tasks = shuffle(pool()).slice(0, 14);
-  quiz = { tasks, i: 0, score: 0, streak: 0, right: 0, results: [], finished: false, done: false };
+  // Aufgabentypen abwechselnd mischen, damit nicht nur Anklick-Aufgaben kommen
+  const q = {};
+  shuffle(pool()).forEach(t => (q[t.type] = q[t.type] || []).push(t));
+  const order = ['pick', 'cmp', 'pick', 'build', 'pred', 'pick', 'cat', 'cmp', 'pick', 'pred', 'build', 'pick'];
+  const tasks = [];
+  while (tasks.length < 15 && Object.values(q).some(a => a.length)) {
+    for (const ty of order) { if (q[ty] && q[ty].length && tasks.length < 15) tasks.push(q[ty].shift()); }
+  }
+  quiz = { tasks: shuffle(tasks), i: 0, score: 0, streak: 0, right: 0, results: [], finished: false, done: false };
   showTask();
 }
 
@@ -1204,41 +1251,88 @@ function showEnd() {
   app.append(p);
 }
 
-/* ================= Bausteine ansehen ================= */
+/* ================= Bausteine ansehen & einschätzen ================= */
+let refOrder = [];
 function showReference() {
   app.textContent = '';
   const p = el('section', 'panel');
   p.append(el('h2', null, 'Bausteine-Übersicht'));
-  p.append(el('p', 'muted', 'Klicke auf einen Block, um zu lesen, was er macht.'));
+  p.append(el('p', 'muted', 'Klicke auf einen Block: Du erfährst, was er macht, und kannst dich einschätzen. Danach kannst du im Quiz gezielt das üben, was noch nicht sitzt.'));
+  const sum = el('div', 'legend'); p.append(sum);
+  refOrder = [];
   Object.keys(CATS).forEach(k => {
     const sec = el('div', 'ov-cat');
     const h = el('h3'); const dot = el('span', 'dot'); dot.style.background = CATS[k].c; h.append(dot, CATS[k].n);
     sec.append(h);
     const grid = el('div', 'ov-grid');
     Object.values(L).filter(d => d.cat === k).forEach(d => {
-      const b = el('button', 'ov-item'); b.type = 'button';
-      b.append(renderBlock(K(d.id), {}));
-      b.addEventListener('click', () => { grid.parentElement.parentElement.querySelectorAll('.ov-item.active').forEach(x => x.classList.remove('active')); b.classList.add('active'); openSheet(d); });
+      refOrder.push(d.id);
+      const b = el('button', 'ov-item'); b.type = 'button'; b.dataset.id = d.id;
+      b.append(renderBlock(K(d.id), {}), el('span', 'badge'));
+      b.addEventListener('click', () => openSheet(d.id));
       grid.append(b);
     });
     sec.append(grid); p.append(sec);
   });
+  const reset = el('button', 'secondary-btn', 'Einschätzung zurücksetzen'); reset.type = 'button'; reset.style.marginTop = '22px';
+  reset.addEventListener('click', () => { if (confirm('Alle Einschätzungen löschen?')) { rating = {}; saveRating(); closeSheet(); paintRatings(); } });
+  p.append(reset);
   app.append(p);
   layout(app);
+  paintRatings();
 }
-function openSheet(d) {
+function paintRatings() {
+  document.querySelectorAll('.ov-item').forEach(b => {
+    const l = LEVELS.find(x => x[0] === levelOf(b.dataset.id));
+    const bd = b.querySelector('.badge');
+    bd.textContent = l[0] === 'new' ? '' : l[1];
+    b.title = l[2];
+  });
+  const sum = document.querySelector('.legend');
+  if (sum) {
+    sum.textContent = '';
+    LEVELS.forEach(([k, emoji, name]) => {
+      const n = refOrder.filter(id => levelOf(id) === k).length;
+      const s = el('span', 'stat'); s.append(emoji + ' ' + name + ' ', el('strong', null, String(n))); sum.append(s);
+    });
+  }
+}
+function openSheet(id) {
   closeSheet();
+  const d = L[id];
   const s = el('div', 'sheet');
   const x = el('button', 'x', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Schließen'); x.addEventListener('click', closeSheet);
   const tag = el('div', 'tag', CATS[d.cat].n); tag.style.color = CATS[d.cat].c3;
   const inner = el('div', 'list'); inner.append(renderBlock(K(d.id), {}));
   s.append(x, tag, inner, el('p', null, d.d));
+  s.append(el('div', 'sel-label', 'Wie gut kannst du diesen Baustein?'));
+  const row = el('div', 'rate-row');
+  LEVELS.filter(l => l[0] !== 'new').forEach(([k, emoji, name, color]) => {
+    const b = el('button', 'rate-btn', emoji + ' ' + name); b.type = 'button';
+    b.setAttribute('aria-pressed', levelOf(id) === k);
+    b.addEventListener('click', () => {
+      if (levelOf(id) === k) delete rating[id]; else rating[id] = k;
+      saveRating(); paintRatings();
+      row.querySelectorAll('.rate-btn').forEach((r, i) => r.setAttribute('aria-pressed', levelOf(id) === ['no', 'mid', 'yes'][i]));
+    });
+    row.append(b);
+  });
+  s.append(row);
+  const nav = el('div', 'rate-row');
+  const i = refOrder.indexOf(id);
+  const prev = el('button', 'secondary-btn', '‹ Zurück'); prev.type = 'button'; prev.disabled = i <= 0;
+  const next = el('button', 'secondary-btn', 'Weiter ›'); next.type = 'button'; next.disabled = i >= refOrder.length - 1;
+  prev.addEventListener('click', () => openSheet(refOrder[i - 1]));
+  next.addEventListener('click', () => openSheet(refOrder[i + 1]));
+  nav.append(prev, next); s.append(nav);
   document.body.append(s); sheetEl = s;
   layout(s);
+  const it = document.querySelector('.ov-item[data-id="' + id + '"]');
+  if (it) { it.classList.add('active'); it.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
 }
 function closeSheet() { if (sheetEl) { sheetEl.remove(); sheetEl = null; } document.querySelectorAll('.ov-item.active').forEach(x => x.classList.remove('active')); }
 
-showSetup();
+showReference();
 </script>
 </body>
 </html>
