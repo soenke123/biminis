@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Ein Schulprojekt über die Romantik, Liebe und Liebeslyrik.">
+  <title>Die Romantik – Liebe &amp; Liebeslyrik</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #f7f0e5;
+      --paper-deep: #eee1cf;
+      --ink: #342522;
+      --muted: #75615a;
+      --wine: #783b48;
+      --rose: #ad7377;
+      --gold: #b18a55;
+      --line: rgba(120, 59, 72, .22);
+      --shadow: 0 16px 42px rgba(57, 34, 28, .12);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse at 15% 10%, rgba(177,138,85,.09), transparent 28rem),
+        radial-gradient(ellipse at 90% 45%, rgba(120,59,72,.06), transparent 32rem),
+        var(--paper);
+      font-family: "Source Sans 3", sans-serif;
+      line-height: 1.7;
+    }
+    a { color: inherit; }
+    .topbar {
+      position: sticky; top: 0; z-index: 20;
+      background: rgba(247,240,229,.94);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line);
+    }
+    .nav {
+      max-width: 1120px; margin: auto; padding: 12px 24px;
+      display: flex; align-items: center; justify-content: space-between; gap: 20px;
+    }
+    .brand {
+      font: 600 1.35rem "Playfair Display", serif;
+      color: var(--wine); white-space: nowrap; text-decoration: none;
+    }
+    .navlinks { display: flex; flex-wrap: wrap; gap: 18px; justify-content: flex-end; }
+    .navlinks a {
+      text-decoration: none; color: var(--muted); font-size: .92rem;
+      transition: color .2s;
+    }
+    .navlinks a:hover { color: var(--wine); }
+    .hero {
+      min-height: 590px; display: grid; place-items: center; text-align: center;
+      padding: 92px 24px 100px; position: relative; overflow: hidden;
+      background:
+        linear-gradient(rgba(34,23,23,.48), rgba(34,23,23,.55)),
+        url("https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=2000&q=85") center 48%/cover;
+      color: #fff8ef;
+    }
+    .hero::before, .hero::after {
+      content: "✦"; position: absolute; color: rgba(255,239,211,.65); font-size: 2rem;
+    }
+    .hero::before { top: 17%; left: 13%; }
+    .hero::after { bottom: 18%; right: 14%; }
+    .hero-inner { max-width: 820px; }
+    .eyebrow {
+      text-transform: uppercase; letter-spacing: .24em; font-size: .78rem;
+      color: #e9cfaa; font-weight: 600;
+    }
+    h1, h2, h3 { font-family: "Playfair Display", serif; font-weight: 500; line-height: 1.15; }
+    h1 { font-size: clamp(3.2rem, 8vw, 6.7rem); margin: 18px 0 10px; }
+    .hero-subtitle { font: italic clamp(1.25rem, 3vw, 1.8rem) "Cormorant Garamond", serif; }
+    .hero p { max-width: 610px; margin: 24px auto 30px; color: #f4e9dc; font-size: 1.08rem; }
+    .hero-button {
+      display: inline-block; padding: 12px 24px; border: 1px solid #e9cfaa;
+      color: #fff8ef; text-decoration: none; letter-spacing: .06em;
+      transition: background .2s, color .2s;
+    }
+    .hero-button:hover { background: #e9cfaa; color: #382726; }
+    main { max-width: 1050px; margin: auto; padding: 0 24px 80px; }
+    section { padding: 82px 0 30px; }
+    .section-kicker { color: var(--rose); text-transform: uppercase; letter-spacing: .2em; font-size: .76rem; font-weight: 600; }
+    h2 { font-size: clamp(2.25rem, 5vw, 3.5rem); color: var(--wine); margin: 8px 0 20px; }
+    h3 { color: var(--wine); font-size: 1.55rem; margin: 0 0 10px; }
+    .lead { font: 500 1.35rem/1.55 "Cormorant Garamond", serif; color: #59433e; max-width: 800px; }
+    .rule { width: 76px; height: 2px; background: var(--gold); margin: 22px 0 28px; }
+    .two-col { display: grid; grid-template-columns: 1.15fr .85fr; gap: 42px; align-items: center; }
+    .image-frame {
+      padding: 10px; border: 1px solid var(--line); background: rgba(255,255,255,.35);
+      box-shadow: var(--shadow); transform: rotate(1deg);
+    }
+    .image-frame img { display: block; width: 100%; height: 330px; object-fit: cover; filter: sepia(.16) saturate(.8); }
+    .caption { color: var(--muted); font: italic .95rem "Cormorant Garamond", serif; text-align: center; margin: 9px 0 0; }
+    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 30px; }
+    .card {
+      background: rgba(255,255,255,.42); border: 1px solid var(--line);
+      padding: 25px 23px; box-shadow: 0 8px 22px rgba(57,34,28,.05);
+    }
+    .card .symbol { font-size: 1.7rem; color: var(--gold); margin-bottom: 10px; }
+    .poem {
+      max-width: 760px; margin: 28px auto; padding: 36px 42px;
+      background: #efe3d2; border: 1px solid rgba(177,138,85,.5);
+      box-shadow: var(--shadow); text-align: center; position: relative;
+    }
+    .poem::before, .poem::after { content: "❧"; color: var(--rose); font-size: 2rem; position: absolute; }
+    .poem::before { top: 8px; left: 17px; }
+    .poem::after { bottom: 8px; right: 17px; transform: rotate(180deg); }
+    .poem h3 { font-style: italic; }
+    .poem p { font: 1.25rem/1.65 "Cormorant Garamond", serif; white-space: pre-line; }
+    .poem small { color: var(--muted); }
+    .note {
+      border-left: 3px solid var(--gold); padding: 15px 20px; margin: 25px 0;
+      background: rgba(177,138,85,.09); color: #59433e;
+    }
+    .timeline { border-left: 1px solid var(--gold); margin: 28px 0 0 10px; padding-left: 26px; }
+    .timeline-item { position: relative; margin: 0 0 25px; }
+    .timeline-item::before {
+      content: ""; position: absolute; width: 10px; height: 10px; border-radius: 50%;
+      background: var(--wine); left: -32px; top: 8px;
+    }
+    .timeline-item strong { color: var(--wine); }
+    .sources { font-size: .95rem; color: var(--muted); }
+    .sources li { margin: 8px 0; }
+    footer {
+      text-align: center; padding: 34px 20px; background: #392a29; color: #eadbca;
+      font: italic 1.1rem "Cormorant Garamond", serif;
+    }
+    footer small { display: block; margin-top: 8px; font: .8rem "Source Sans 3", sans-serif; color: #c7b5a5; }
+    @media (max-width: 760px) {
+      .nav { align-items: flex-start; flex-direction: column; }
+      .navlinks { justify-content: flex-start; gap: 8px 15px; }
+      .hero { min-height: 520px; }
+      .two-col { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: 1fr; }
+      .image-frame img { height: 260px; }
+      .poem { padding: 32px 22px; }
+    }
+    @media print {
+      .topbar { position: static; }
+      .hero { min-height: 360px; print-color-adjust: exact; }
+      .hero-button { display: none; }
+      section { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <nav class="nav" aria-label="Hauptnavigation">
+      <a class="brand" href="#start">✧ Die Romantik</a>
+      <div class="navlinks">
+        <a href="#epoche">Die Epoche</a>
+        <a href="#liebe">Liebe</a>
+        <a href="#lyrik">Liebeslyrik</a>
+        <a href="#motive">Motive</a>
+        <a href="#fazit">Fazit</a>
+      </div>
+    </nav>
+  </header>
+
+  <header class="hero" id="start">
+    <div class="hero-inner">
+      <div class="eyebrow">Literatur · Gefühl · Sehnsucht</div>
+      <h1>Die Romantik</h1>
+      <div class="hero-subtitle">Liebe zwischen Sehnsucht und Wirklichkeit</div>
+      <p>Eine Reise in eine Literaturepoche, in der Gefühle, Fantasie und die Suche nach dem Unendlichen eine besondere Rolle spielten.</p>
+      <a class="hero-button" href="#epoche">Die Reise beginnen ↓</a>
+    </div>
+  </header>
+
+  <main>
+    <section id="epoche">
+      <div class="section-kicker">01 · Historischer Hintergrund</div>
+      <h2>Was ist die Romantik?</h2>
+      <div class="two-col">
+        <div>
+          <p class="lead">Die Romantik war eine Literaturepoche, die ungefähr von 1795 bis 1835 dauerte. Sie stellte Gefühl, Fantasie und Individualität in den Mittelpunkt.</p>
+          <div class="rule"></div>
+          <p>Viele romantische Schriftsteller wollten sich von einer Welt abgrenzen, die zunehmend durch Vernunft, Regeln und Wissenschaft geprägt war. Sie interessierten sich für das Geheimnisvolle, das Unbewusste und die inneren Wünsche des Menschen.</p>
+          <p>Die Natur wurde dabei häufig als Spiegel der menschlichen Seele dargestellt. Wälder, Mondnächte, Ruinen und weite Landschaften schufen eine geheimnisvolle Stimmung.</p>
+        </div>
+        <div class="image-frame">
+          <img src="https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1000&q=85" alt="Nebeliger See und Berge in einer ruhigen Landschaft">
+          <p class="caption">Die Natur als Spiegel der Gefühle</p>
+        </div>
+      </div>
+      <div class="timeline">
+        <div class="timeline-item"><strong>Frühromantik (ca. 1795–1804)</strong><br>Neue Ideen über Kunst, Poesie und die Verbindung der verschiedenen Künste entstehen.</div>
+        <div class="timeline-item"><strong>Hochromantik (ca. 1804–1815)</strong><br>Sagen, Märchen, Volkslieder und die deutsche Vergangenheit gewinnen an Bedeutung.</div>
+        <div class="timeline-item"><strong>Spätromantik (ca. 1815–1835)</strong><br>Geheimnisvolle, fantastische und teilweise unheimliche Themen werden stärker aufgegriffen.</div>
+      </div>
+    </section>
+
+    <section id="liebe">
+      <div class="section-kicker">02 · Gefühle und Beziehungen</div>
+      <h2>Wie wird Liebe dargestellt?</h2>
+      <p class="lead">In der Romantik ist Liebe oft mehr als eine Beziehung zwischen zwei Menschen: Sie wird zur Sehnsucht nach Nähe, Vollkommenheit und etwas Unendlichem.</p>
+      <div class="cards">
+        <article class="card">
+          <div class="symbol">♡</div>
+          <h3>Sehnsucht</h3>
+          <p>Das lyrische Ich sehnt sich nach einem geliebten Menschen oder nach einer idealen Liebe. Diese Sehnsucht bleibt häufig unerfüllt und wird dadurch besonders intensiv.</p>
+        </article>
+        <article class="card">
+          <div class="symbol">✧</div>
+          <h3>Idealisierung</h3>
+          <p>Die geliebte Person erscheint oft vollkommen, geheimnisvoll oder beinahe überirdisch. Die Vorstellung von Liebe ist dabei manchmal wichtiger als die Wirklichkeit.</p>
+        </article>
+        <article class="card">
+          <div class="symbol">☾</div>
+          <h3>Unerfüllte Liebe</h3>
+          <p>Trennung, Entfernung und Einsamkeit gehören zu häufigen Themen. Schmerz und Melancholie zeigen, wie stark das lyrische Ich empfindet.</p>
+        </article>
+      </div>
+      <div class="note"><strong>Wichtig:</strong> Die romantische Liebe ist häufig mit der Sehnsucht nach etwas verbunden, das im wirklichen Leben kaum erreichbar scheint. Gerade diese Spannung zwischen Wunsch und Wirklichkeit prägt viele Texte.</div>
+    </section>
+
+    <section id="lyrik">
+      <div class="section-kicker">03 · Gedichte und Sprache</div>
+      <h2>Die Liebeslyrik der Romantik</h2>
+      <div class="two-col">
+        <div>
+          <p class="lead">Liebesgedichte drücken Gefühle nicht nur direkt aus. Sie verwenden Bilder, Symbole und Naturbeschreibungen, um innere Zustände sichtbar zu machen.</p>
+          <p>Typisch sind eine gefühlvolle Sprache, ein musikalischer Klang und eine eher persönliche Perspektive. Häufig spricht ein lyrisches Ich, das von Liebe, Hoffnung, Einsamkeit oder Sehnsucht erzählt.</p>
+          <p>Die Natur begleitet diese Gefühle: Eine Nacht kann geheimnisvoll wirken, ein weiter Himmel kann Freiheit ausdrücken und eine Blume kann für Liebe oder Vergänglichkeit stehen.</p>
+        </div>
+        <div class="image-frame">
+          <img src="https://images.unsplash.com/photo-1455390582262-044cde3d0a68?auto=format&fit=crop&w=1000&q=85" alt="Aufgeschlagenes Notizbuch mit Stift auf einem Schreibtisch">
+          <p class="caption">Gedichte machen Gefühle in Sprache erfahrbar</p>
+        </div>
+      </div>
+
+      <div class="poem">
+        <h3>„Mondnacht“ – Joseph von Eichendorff</h3>
+        <p>Es war, als hätt der Himmel
+Die Erde still geküßt,
+Daß sie im Blütenschimmer
+Von ihm nun träumen müßt.</p>
+        <small>Joseph von Eichendorff, 1837 · Auszug aus dem Gedicht „Mondnacht“</small>
+      </div>
+      <p>Das Gedicht verbindet Naturbilder mit einer traumhaften Stimmung. Der Himmel und die Erde werden wie zwei Liebende dargestellt. Der Kuss kann als Bild für eine innige Verbindung verstanden werden. Die Natur wirkt beseelt und spiegelt eine Sehnsucht nach Harmonie und Geborgenheit wider.</p>
+      <div class="note"><strong>Deutung:</strong> Die Liebe erscheint hier nicht als alltägliche Beziehung, sondern als eine beinahe überirdische Verbindung. Das ist typisch für die romantische Vorstellung, dass die sichtbare Welt auf etwas Tieferes verweisen kann.</div>
+    </section>
+
+    <section id="motive">
+      <div class="section-kicker">04 · Bildsprache und Symbole</div>
+      <h2>Typische Motive der Romantik</h2>
+      <p class="lead">Bestimmte Bilder tauchen in romantischen Gedichten immer wieder auf. Sie vermitteln Stimmungen und stehen oft für Gefühle oder Wünsche.</p>
+      <div class="cards">
+        <article class="card">
+          <div class="symbol">☾</div>
+          <h3>Der Mond und die Nacht</h3>
+          <p>Sie stehen für Geheimnis, Traum, Ruhe und das Unbewusste. In der Dunkelheit scheint die Fantasie besonders frei zu sein.</p>
+        </article>
+        <article class="card">
+          <div class="symbol">❀</div>
+          <h3>Blumen und Rosen</h3>
+          <p>Blumen können Liebe, Schönheit und Hoffnung symbolisieren. Ihre Vergänglichkeit erinnert zugleich daran, dass Glück nicht ewig dauert.</p>
+        </article>
+        <article class="card">
+          <div class="symbol">♧</div>
+          <h3>Wald und Ferne</h3>
+          <p>Der Wald steht oft für das Geheimnisvolle. Die Ferne verkörpert Freiheit und die Sehnsucht nach einer anderen, besseren Welt.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="fazit">
+      <div class="section-kicker">05 · Zusammenfassung</div>
+      <h2>Fazit: Liebe als Sehnsucht</h2>
+      <p class="lead">Die Liebeslyrik der Romantik zeigt Liebe als ein intensives, oft widersprüchliches Gefühl – zwischen Glück, Hoffnung, Schmerz und unerfüllbarer Sehnsucht.</p>
+      <p>Die Dichterinnen und Dichter der Romantik nutzten Naturbilder, Symbole und eine gefühlvolle Sprache, um innere Erlebnisse auszudrücken. Liebe wurde häufig idealisiert und mit dem Wunsch nach Harmonie und Unendlichkeit verbunden.</p>
+      <p>Damit macht die romantische Liebeslyrik deutlich, dass Liebe nicht nur aus Nähe und Glück besteht. Auch Entfernung, Erinnerung und Sehnsucht können Teil des Liebeserlebens sein.</p>
+      <div class="rule"></div>
+      <h3>Quellen und Hinweise</h3>
+      <ul class="sources">
+        <li>Joseph von Eichendorff: „Mondnacht“ (1837), Gedichttext und literarische Einordnung.</li>
+        <li>Deutsches Textarchiv: <a href="https://www.deutschestextarchiv.de/" target="_blank" rel="noopener">deutschestextarchiv.de</a></li>
+        <li>Deutsche Literatur: <a href="https://www.literaturwelt.com/" target="_blank" rel="noopener">literaturwelt.com</a></li>
+      </ul>
+      <p class="sources"><em>Hinweis für die Abgabe:</em> Ergänze die Quellen, die du tatsächlich für deine Recherche verwendest, und prüfe die Vorgaben deiner Lehrkraft. Die Epochenabgrenzungen sind ungefähre Orientierungswerte.</p>
+    </section>
+  </main>
+
+  <footer>
+    „Die Poesie hebt den Schleier von der Welt und lässt uns das Wunderbare erkennen.“
+    <small>Schulprojekt · Die Romantik – Liebe und Liebeslyrik</small>
+  </footer>
+</body>
+</html>
